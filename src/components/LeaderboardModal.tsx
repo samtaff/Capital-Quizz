@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Trophy, X, Crown, Sparkles } from 'lucide-react';
+import { Trophy, X, Crown, Sparkles, LogOut } from 'lucide-react';
 import { PartyDoc, Player } from '../types';
 
 interface LeaderboardModalProps {
@@ -8,6 +8,7 @@ interface LeaderboardModalProps {
   onClose: () => void;
   party: PartyDoc;
   currentPlayerId: string;
+  onLeave?: () => void;
 }
 
 export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
@@ -15,6 +16,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
   onClose,
   party,
   currentPlayerId,
+  onLeave,
 }) => {
   // Close on Escape key
   useEffect(() => {
@@ -165,7 +167,17 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
           </div>
 
           {/* Footer */}
-          <div className="pt-3 border-t border-white/10 flex justify-end shrink-0">
+          <div className="pt-3 border-t border-white/10 flex items-center justify-between gap-2 shrink-0">
+            {onLeave ? (
+              <button
+                onClick={onLeave}
+                className="flex items-center gap-1.5 bg-rose-500/20 hover:bg-rose-500/30 active:scale-95 text-rose-300 hover:text-white font-black text-xs uppercase tracking-wider px-3.5 py-2.5 rounded-xl border border-rose-500/30 transition-all cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5 text-rose-400" />
+                <span>Quitter la partie</span>
+              </button>
+            ) : <div />}
+
             <button
               onClick={onClose}
               className="bg-white/15 hover:bg-white/25 active:scale-95 text-white font-black text-xs uppercase tracking-wider px-5 py-2.5 rounded-xl border border-white/20 transition-all cursor-pointer"

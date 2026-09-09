@@ -206,6 +206,10 @@ export default function App() {
           onClose={() => setShowLeaderboardModal(false)}
           party={party}
           currentPlayerId={effectivePlayerId}
+          onLeave={() => {
+            setShowLeaderboardModal(false);
+            setShowLeaveModal(true);
+          }}
         />
       )}
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PartyDoc } from './types';
-import { subscribeToParty, leaveParty, applyWheelSectorAndStartQuestion } from './services/gameService';
+import { subscribeToParty, leaveParty, applyWheelSectorAndStartQuestion, applyWheelPlayerAndStartQuestion } from './services/gameService';
 import { HomeScreen } from './components/HomeScreen';
 import { Lobby } from './components/Lobby';
 import { WheelScreen } from './components/WheelScreen';
@@ -150,6 +150,9 @@ export default function App() {
           <WheelScreen
             party={party}
             currentPlayerId={effectivePlayerId}
+            onProceedPlayer={async (selectedPlayerId) => {
+              await applyWheelPlayerAndStartQuestion(party.code, selectedPlayerId);
+            }}
             onSpinComplete={async (sector) => {
               await applyWheelSectorAndStartQuestion(party.code, sector);
             }}

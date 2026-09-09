@@ -319,6 +319,77 @@ export async function startPartyGame(code: string): Promise<void> {
 }
 
 /**
+ * Lance la rotation de la roue en temps réel (synchronisé pour tous les joueurs dans Firestore)
+ */
+export async function spinPartyWheel(
+  code: string,
+  targetPlayerId: string,
+  targetAngle: number
+): Promise<void> {
+  const spunAt = Date.now();
+  if (code === 'LOCAL' || code.startsWith('LOCAL')) {
+    if (!activeLocalParty) return;
+    const targetPlayer = activeLocalParty.players?.[targetPlayerId];
+    activeLocalParty.wheelState = {
+      spinning: true,
+      targetPlayerId,
+      targetPlayerName: targetPlayer?.nickname || 'Joueur',
+      targetAngle,
+      spunAt,
+      hasLanded: false,
+    };
+    activeLocalParty.activePlayerId = targetPlayerId;
+    notifyLocalSubscribers();
+    return;
+  }
+
+  const partyRef = doc(db, 'parties', code);
+  const snap = await getDoc(partyRef);
+  if (!snap.exists()) return;
+  const party = snap.data() as PartyDoc;
+  const targetPlayer = party.players?.[targetPlayerId];
+
+  await updateDoc(partyRef, {
+    wheelState: {
+      spinning: true,
+      targetPlayerId,
+      targetPlayerName: targetPlayer?.nickname || 'Joueur',
+      targetAngle,
+      spunAt,
+      hasLanded: false,
+    },
+    activePlayerId: targetPlayerId,
+  });
+}
+
+/**
+ * Applique le joueur désigné par la roue et démarre la question
+ */
+export async function applyWheelPlayerAndStartQuestion(
+  code: string,
+  targetPlayerId: string
+): Promise<void> {
+  if (code === 'LOCAL' || code.startsWith('LOCAL')) {
+    if (!activeLocalParty) return;
+    activeLocalParty.activePlayerId = targetPlayerId;
+    activeLocalParty.status = 'question';
+    activeLocalParty.roundStartTime = Date.now();
+    activeLocalParty.wheelState = null;
+    activeLocalParty.waitingForNextPlayer = false;
+    notifyLocalSubscribers();
+    return;
+  }
+
+  const partyRef = doc(db, 'parties', code);
+  await updateDoc(partyRef, {
+    activePlayerId: targetPlayerId,
+    status: 'question',
+    roundStartTime: Date.now(),
+    wheelState: null,
+  });
+}
+
+/**
  * Applique le résultat du tirage de la roue et bascule vers la question
  */
 export async function applyWheelSectorAndStartQuestion(

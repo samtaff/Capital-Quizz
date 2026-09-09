@@ -66,6 +66,15 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   const isHost = party.hostId === currentPlayerId;
   const currentPlayer = party.players?.[currentPlayerId];
 
+  // Interrogated / Designated Player in Wheel Mode
+  const isWheelMode = party.gameMode === 'wheel';
+  const interrogatedPlayerId = party.activePlayerId;
+  const hasDesignatedPlayer = Boolean(isWheelMode && interrogatedPlayerId);
+  const isDesignatedPlayer = party.isLocal
+    ? true
+    : !hasDesignatedPlayer || interrogatedPlayerId === currentPlayerId;
+  const designatedPlayer = hasDesignatedPlayer ? party.players?.[interrogatedPlayerId!] : null;
+
   // Local states
   const [selectedMode, setSelectedMode] = useState<ResponseMode | null>(
     currentPlayer?.selectedMode || null
@@ -126,7 +135,9 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
 
       if (remaining <= 0) {
         clearInterval(interval);
-        handleTimeout();
+        if (isDesignatedPlayer) {
+          handleTimeout();
+        }
       }
     }, 250);
 
@@ -138,6 +149,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
     party.waitingForNextPlayer,
     party.roundStartTime,
     roundDuration,
+    isDesignatedPlayer,
   ]);
 
   const handleTimeout = async () => {
@@ -451,6 +463,28 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
               </span>
               <span>Au tour de <strong className="text-[#FB923C]">{currentPlayer?.nickname}</strong></span>
             </span>
+          ) : hasDesignatedPlayer ? (
+            <span
+              className={`text-xs font-black px-3 py-1 rounded-full border flex items-center gap-2 shadow-xs ${
+                isDesignatedPlayer
+                  ? 'bg-amber-400/20 text-amber-300 border-amber-400/40 animate-pulse'
+                  : 'bg-white/10 text-white/90 border-white/15'
+              }`}
+            >
+              <span
+                className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] text-white font-black"
+                style={{ backgroundColor: designatedPlayer?.color || '#FB923C' }}
+              >
+                {designatedPlayer?.nickname?.charAt(0) || '?'}
+              </span>
+              <span>
+                {isDesignatedPlayer ? (
+                  <>🎯 <strong className="text-amber-300">À vous de répondre !</strong></>
+                ) : (
+                  <>🎯 Interrogé(e) : <strong className="text-amber-300">{designatedPlayer?.nickname}</strong></>
+                )}
+              </span>
+            </span>
           ) : totalPlayers > 1 ? (
             <span className="text-[11px] text-white/70 font-semibold bg-white/10 px-2.5 py-1 rounded-full border border-white/10 flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -544,24 +578,24 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
 
       {/* ================= FOOTER / INTERACTION AREA (Compact, Fits without scrolling) ================= */}
       <footer className="w-full mt-1 sm:mt-2 flex flex-col items-center shrink-0">
-        {/* State 1: Answered Feedback */}
-        {alreadyAnswered || hasSubmittedLocally ? (() => {
-          const currentAns = currentPlayer?.currentAnswer;
-          const isCorrect = localFeedback.status
+        {/* State 1: Answered Feedback (Self or Designated Player) */}
+        {(isDesignatedPlayer ? (alreadyAnswered || hasSubmittedLocally) : Boolean(designatedPlayer?.currentAnswer)) ? (() => {
+          const currentAns = isDesignatedPlayer ? currentPlayer?.currentAnswer : designatedPlayer?.currentAnswer;
+          const isCorrect = isDesignatedPlayer && localFeedback.status
             ? (localFeedback.status === 'correct' || localFeedback.status === 'minor_error')
             : (currentAns?.isCorrect ?? false);
-          const status = localFeedback.status
+          const status = isDesignatedPlayer && localFeedback.status
             ? localFeedback.status
             : (currentAns?.isCorrect ? 'correct' : 'wrong');
-          const points = localFeedback.status
+          const points = isDesignatedPlayer && localFeedback.status
             ? localFeedback.points
             : (currentAns?.pointsEarned ?? 0);
-          const punchline = activePunchline
+          const punchline = (isDesignatedPlayer ? activePunchline : '')
             || currentAns?.punchline
             || (isCorrect ? getRandomSuccessPunchline() : getRandomFailurePunchline());
 
-          const effectiveMode = currentAns?.mode || selectedMode || 'carre';
-          const answeredCity = currentAns?.answer || submittedAnswerText || selectedCarreOption || '';
+          const effectiveMode = currentAns?.mode || (isDesignatedPlayer ? selectedMode : designatedPlayer?.selectedMode) || 'carre';
+          const answeredCity = currentAns?.answer || (isDesignatedPlayer ? (submittedAnswerText || selectedCarreOption) : '') || '';
 
           return (
             <motion.div
@@ -698,7 +732,11 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                       <XCircle className="w-4 h-4 text-rose-400 shrink-0" />
                     )}
                     <h3 className="text-xs sm:text-sm font-black text-white uppercase tracking-wide">
-                      {status === 'correct'
+                      {!isDesignatedPlayer
+                        ? status === 'correct'
+                          ? `Bonne réponse de ${designatedPlayer?.nickname || 'Joueur'} !`
+                          : `Raté pour ${designatedPlayer?.nickname || 'Joueur'} !`
+                        : status === 'correct'
                         ? 'Bonne réponse !'
                         : status === 'minor_error'
                         ? 'Accepté avec tolérance !'
@@ -761,13 +799,65 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
               </div>
             </motion.div>
           );
-        })() : selectedMode === null ? (
+        })() : (!isDesignatedPlayer) ? (
+          /* State 1b: Spectator view waiting for designated player to answer */
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full max-w-lg bg-[#1e174b]/95 backdrop-blur-xl border border-white/20 rounded-2xl p-4 shadow-2xl flex flex-col items-center text-center gap-3"
+          >
+            <div className="flex items-center gap-3">
+              <div
+                className="w-11 h-11 rounded-2xl flex items-center justify-center font-black text-white text-xl shadow-lg border-2 border-white/30 uppercase"
+                style={{ backgroundColor: designatedPlayer?.color || '#3B82F6' }}
+              >
+                {designatedPlayer?.nickname?.charAt(0) || '?'}
+              </div>
+              <div className="text-left">
+                <div className="text-base font-black text-white uppercase tracking-tight">
+                  {designatedPlayer?.nickname}
+                </div>
+                <div className="text-xs text-amber-300 font-bold">
+                  {designatedPlayer?.selectedMode
+                    ? `A choisi le mode ${designatedPlayer.selectedMode === 'cash' ? '⚡ CASH' : '🔲 CARRÉ'}`
+                    : 'En train de choisir son mode...'}
+                </div>
+              </div>
+            </div>
+
+            <div className="w-full bg-black/35 border border-white/10 rounded-xl py-2.5 px-3 flex items-center justify-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping" />
+              <span className="text-xs text-white/90 font-bold">
+                {designatedPlayer?.selectedMode
+                  ? `Réflexion en cours... Observe la réponse de ${designatedPlayer.nickname} !`
+                  : `En attente de la réponse de ${designatedPlayer?.nickname || 'son collègue'}...`}
+              </span>
+            </div>
+
+            {onOpenLeaderboard && (
+              <button
+                onClick={onOpenLeaderboard}
+                className="text-[11px] text-white/60 hover:text-white flex items-center justify-center gap-1 transition-colors cursor-pointer"
+              >
+                <Trophy className="w-3.5 h-3.5 text-[#FB923C]" />
+                <span>Consulter le classement</span>
+              </button>
+            )}
+          </motion.div>
+        ) : selectedMode === null ? (
           /* State 2: REQUIRED FIRST STEP -> Choose between CASH and CARRÉ (Zero scroll!) */
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             className="w-full flex flex-col items-center gap-2 max-w-xl"
           >
+            {hasDesignatedPlayer && (
+              <div className="w-full bg-amber-400/20 border border-amber-400/30 rounded-xl px-3 py-1.5 text-center text-xs font-black text-amber-300 uppercase tracking-wide flex items-center justify-center gap-2 shadow-xs">
+                <span>🎯</span>
+                <span>Vous avez été désigné(e) par la roue ! Choisissez votre mode :</span>
+              </div>
+            )}
+
             <div className="w-full flex items-center justify-start px-1">
               <h2 className="text-xs sm:text-sm font-black text-white uppercase tracking-wide">
                 Choisissez votre mode :

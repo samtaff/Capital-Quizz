@@ -31,9 +31,12 @@ export interface WheelSector {
 
 export interface WheelState {
   spinning: boolean;
-  targetSectorId?: WheelSectorId;
+  targetSectorId?: WheelSectorId | string;
+  targetPlayerId?: string;
+  targetPlayerName?: string;
   targetAngle?: number;
   spunAt?: number;
+  hasLanded?: boolean;
   activeSector?: WheelSector | null;
 }
 

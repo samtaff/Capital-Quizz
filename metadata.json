@@ -1,0 +1,7 @@
+{
+  "name": "Quiz des Capitales",
+  "description": "Application web de quiz multijoueur en temps réel sur les capitales du monde dans le style Kahoot.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

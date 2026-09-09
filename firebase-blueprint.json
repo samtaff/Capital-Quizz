@@ -1,0 +1,51 @@
+{
+  "entities": {
+    "Party": {
+      "title": "Party",
+      "description": "Represents a quiz multiplayer room session",
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "4-letter party code"
+        },
+        "hostId": {
+          "type": "string",
+          "description": "Host player ID"
+        },
+        "status": {
+          "type": "string",
+          "description": "Status of the room",
+          "enum": ["waiting", "in_progress", "round_review", "leaderboard", "game_over"]
+        },
+        "difficultySetting": {
+          "type": "string",
+          "description": "Difficulty setting"
+        },
+        "totalRounds": {
+          "type": "number",
+          "description": "Total number of rounds"
+        },
+        "currentRoundIndex": {
+          "type": "number",
+          "description": "Current round index"
+        },
+        "createdAt": {
+          "type": "number",
+          "description": "Creation timestamp"
+        },
+        "lastActivity": {
+          "type": "number",
+          "description": "Timestamp of last action"
+        }
+      },
+      "required": ["code", "hostId", "status", "difficultySetting", "totalRounds", "currentRoundIndex", "createdAt", "lastActivity"]
+    }
+  },
+  "firestore": {
+    "/parties/{partyId}": {
+      "schema": "Party",
+      "description": "Active quiz parties and multiplayer sessions"
+    }
+  }
+}

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import {
-  Globe,
   PlusCircle,
   LogIn,
   HelpCircle,
@@ -16,6 +15,7 @@ import {
   Play,
   Users,
 } from 'lucide-react';
+import appLogo from '../assets/images/logo_capitalesquizz.png';
 import { DifficultySelection, GameMode } from '../types';
 import {
   AVATAR_COLORS,
@@ -219,24 +219,23 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         </button>
       </div>
 
-      {/* Main Logo & Title (Artistic Flair glow and typography) */}
-      <div className="text-center flex flex-col items-center relative">
+      {/* Main Logo (Capitale Quizz) */}
+      <div className="text-center flex flex-col items-center relative my-1 sm:my-2">
         <div className="absolute -inset-6 bg-[#FB923C]/20 blur-3xl rounded-full pointer-events-none" />
 
         <motion.div
-          animate={{ rotate: [0, 6, -6, 0] }}
-          transition={{ repeat: Infinity, duration: 8, ease: 'easeInOut' }}
-          className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-2xl sm:rounded-3xl bg-white/10 backdrop-blur-md border border-white/20 shadow-2xl flex items-center justify-center mb-3 sm:mb-4"
+          animate={{ y: [0, -5, 0] }}
+          transition={{ repeat: Infinity, duration: 4, ease: 'easeInOut' }}
+          className="relative flex items-center justify-center"
         >
-          <Globe className="w-8 h-8 sm:w-10 sm:h-10 text-[#FB923C]" />
+          <img
+            id="app-main-logo"
+            src={appLogo}
+            alt="Capitale Quizz"
+            className="w-56 sm:w-64 md:w-72 h-auto max-h-52 sm:max-h-60 object-contain drop-shadow-[0_15px_30px_rgba(0,0,0,0.45)] select-none pointer-events-none"
+            referrerPolicy="no-referrer"
+          />
         </motion.div>
-
-        <h1 className="relative text-2xl sm:text-4xl font-black text-white uppercase tracking-tight">
-          Quiz des Capitales
-        </h1>
-        <p className="relative text-[11px] sm:text-xs uppercase tracking-widest text-white/60 font-bold mt-1">
-          Défiez vos amis en direct • Kahoot Style
-        </p>
       </div>
 
       {/* Player Profile Box */}

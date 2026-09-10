@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { CheckCircle, XCircle, ArrowRight, Trophy, SkipForward } from 'lucide-react';
-import { GameQuestion, PartyDoc } from '../types';
+import { CheckCircle, XCircle, ArrowRight, Trophy, SkipForward, Users } from 'lucide-react';
+import { GameQuestion, PartyDoc, Player } from '../types';
 import { WorldMap } from './WorldMap';
 import { showLeaderboard, nextRoundOrEnd } from '../services/gameService';
 import { sounds } from '../utils/soundEffects';
@@ -26,6 +26,8 @@ export const RoundReview: React.FC<RoundReviewProps> = ({
   const currentPlayer = party.players?.[currentPlayerId];
   const roundAnswer = currentPlayer?.currentAnswer;
   const isEndOfRound = Boolean(party.isLocal && party.playerOrder && ((party.localTurnIndex || 0) + 1) % party.playerOrder.length === 0);
+  const playersList: Player[] = Object.values(party.players || {});
+  const isMultiplayer = playersList.length > 1;
 
   const handleNext = () => {
     sounds.playClick();
@@ -38,7 +40,7 @@ export const RoundReview: React.FC<RoundReviewProps> = ({
   };
 
   return (
-    <div className="w-full flex-1 flex flex-col justify-start gap-3 px-2 sm:px-4 py-2 select-none h-full">
+    <div className="w-full flex-1 flex flex-col justify-start gap-2.5 px-2 sm:px-4 py-2 select-none h-full">
       {/* Sleek, Single-line Compact Header */}
       <motion.div
         initial={{ y: -10, opacity: 0 }}
@@ -128,12 +130,80 @@ export const RoundReview: React.FC<RoundReviewProps> = ({
         </div>
       </motion.div>
 
+      {/* Multiplayer Answers Strip: In multiplayer, show who got it right or wrong with their answer and mode */}
+      {isMultiplayer && (
+        <motion.div
+          initial={{ y: -5, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="w-full bg-[#1e174b]/85 backdrop-blur-md border border-white/15 rounded-xl px-3 py-1.5 sm:py-2 flex items-center gap-2 overflow-x-auto shadow-md shrink-0 scrollbar-none"
+        >
+          <div className="flex items-center gap-1 text-[10px] sm:text-xs font-black uppercase text-white/60 shrink-0 tracking-wider">
+            <Users className="w-3.5 h-3.5 text-[#FB923C]" />
+            <span>Réponses :</span>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {playersList.map((p) => {
+              const ans = p.currentAnswer;
+              const hasAns = Boolean(ans);
+              const isCorrect = ans?.isCorrect ?? false;
+              const points = ans?.pointsEarned ?? 0;
+              const isCurrent = p.id === currentPlayerId;
+
+              return (
+                <div
+                  key={p.id}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold transition-all shrink-0 shadow-sm ${
+                    hasAns
+                      ? isCorrect
+                        ? 'bg-emerald-950/70 border-emerald-400/50 text-emerald-300'
+                        : 'bg-rose-950/70 border-rose-400/50 text-rose-300'
+                      : 'bg-white/5 border-white/10 text-white/60'
+                  } ${isCurrent ? 'ring-1 ring-white/50' : ''}`}
+                >
+                  <div
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-black border border-[#1A1443] shrink-0 uppercase"
+                    style={{ backgroundColor: p.color }}
+                  >
+                    {p.nickname.charAt(0)}
+                  </div>
+                  <span className="text-white text-[11px] sm:text-xs font-bold truncate max-w-[90px]">
+                    {p.nickname}
+                  </span>
+                  {hasAns ? (
+                    isCorrect ? (
+                      <span className="flex items-center gap-1 text-[11px] font-black text-emerald-400">
+                        <CheckCircle className="w-3 h-3" />
+                        <span>+{points} pts</span>
+                        <span className="text-[9px] opacity-80 font-normal">
+                          ({ans.mode === 'cash' ? '⚡' : '🔲'})
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 text-[11px] font-black text-rose-400">
+                        <XCircle className="w-3 h-3" />
+                        <span>0 pt</span>
+                        <span className="text-[9px] opacity-80 font-normal">
+                          ({ans.mode === 'cash' ? '⚡' : '🔲'})
+                        </span>
+                      </span>
+                    )
+                  ) : (
+                    <span className="text-[10px] text-white/50 italic">Temps écoulé</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </motion.div>
+      )}
+
       {/* Hero Interactive World Map — Large, Immersive, Full-Height */}
       <motion.div
         initial={{ opacity: 0, scale: 0.98 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.25 }}
-        className="w-full flex-1 flex flex-col"
+        className="w-full flex-1 flex flex-col min-h-0"
       >
         <WorldMap
           countryId={question.countryId}

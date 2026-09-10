@@ -4,6 +4,7 @@ import { Trophy, Crown, RotateCcw, Home, Sparkles, Medal } from 'lucide-react';
 import { PartyDoc, Player } from '../types';
 import { restartParty } from '../services/gameService';
 import { sounds } from '../utils/soundEffects';
+import { getPodiumPunchline } from '../utils/humorMessages';
 
 interface GameOverProps {
   party: PartyDoc;
@@ -26,6 +27,10 @@ export const GameOver: React.FC<GameOverProps> = ({
   const winner = rankedPlayers[0];
   const second = rankedPlayers[1];
   const third = rankedPlayers[2];
+
+  const winnerPunchline = winner ? getPodiumPunchline(winner.id, 1, winner.totalScore, party.code) : '';
+  const secondPunchline = second ? getPodiumPunchline(second.id, 2, second.totalScore, party.code) : '';
+  const thirdPunchline = third ? getPodiumPunchline(third.id, 3, third.totalScore, party.code) : '';
 
   const handleRestart = async () => {
     sounds.playClick();
@@ -77,8 +82,13 @@ export const GameOver: React.FC<GameOverProps> = ({
             <span className="text-white/60 text-xs font-semibold mb-2">
               {second.totalScore} pts
             </span>
-            <div className="w-full h-28 sm:h-36 bg-gradient-to-b from-slate-300/30 to-[#1A1443] rounded-t-2xl border-t-2 border-slate-300/60 flex items-center justify-center">
-              <Medal className="w-8 h-8 text-slate-300" />
+            <div className="w-full h-28 sm:h-36 bg-gradient-to-b from-slate-300/30 to-[#1A1443] rounded-t-2xl border-t-2 border-slate-300/60 flex flex-col items-center justify-between p-2">
+              <Medal className="w-7 h-7 text-slate-300 shrink-0 mt-1" />
+              <div className="bg-black/40 border border-slate-300/30 rounded-lg px-1.5 py-1 text-center w-full mb-1">
+                <p className="text-[9px] sm:text-[10px] font-semibold italic text-slate-200 line-clamp-2 leading-tight">
+                  « {secondPunchline} »
+                </p>
+              </div>
             </div>
           </motion.div>
         ) : (
@@ -114,8 +124,13 @@ export const GameOver: React.FC<GameOverProps> = ({
             <span className="text-[#FB923C] text-xs sm:text-sm font-black mb-2">
               {winner.totalScore} pts
             </span>
-            <div className="w-full h-40 sm:h-48 bg-gradient-to-b from-[#FB923C]/40 to-[#1A1443] rounded-t-2xl border-t-3 border-[#FB923C] flex items-center justify-center shadow-lg shadow-[#FB923C]/20">
-              <Trophy className="w-10 h-10 text-[#FB923C] drop-shadow" />
+            <div className="w-full h-40 sm:h-48 bg-gradient-to-b from-[#FB923C]/40 to-[#1A1443] rounded-t-2xl border-t-3 border-[#FB923C] flex flex-col items-center justify-between p-2 shadow-lg shadow-[#FB923C]/20">
+              <Trophy className="w-9 h-9 text-[#FB923C] drop-shadow shrink-0 mt-2" />
+              <div className="bg-black/50 border border-[#FB923C]/50 rounded-lg px-2 py-1 text-center w-full mb-1 shadow-sm">
+                <p className="text-[10px] sm:text-[11px] font-black italic text-amber-200 line-clamp-3 leading-tight">
+                  « {winnerPunchline} »
+                </p>
+              </div>
             </div>
           </motion.div>
         ) : null}
@@ -143,8 +158,13 @@ export const GameOver: React.FC<GameOverProps> = ({
             <span className="text-white/60 text-xs font-semibold mb-2">
               {third.totalScore} pts
             </span>
-            <div className="w-full h-20 sm:h-28 bg-gradient-to-b from-amber-700/30 to-[#1A1443] rounded-t-2xl border-t-2 border-amber-700/60 flex items-center justify-center">
-              <Medal className="w-7 h-7 text-amber-600" />
+            <div className="w-full h-22 sm:h-30 bg-gradient-to-b from-amber-700/30 to-[#1A1443] rounded-t-2xl border-t-2 border-amber-700/60 flex flex-col items-center justify-between p-1.5 sm:p-2">
+              <Medal className="w-6 h-6 text-amber-600 shrink-0 mt-0.5" />
+              <div className="bg-black/40 border border-amber-700/30 rounded-lg px-1 py-1 text-center w-full mb-1">
+                <p className="text-[8px] sm:text-[9px] font-semibold italic text-amber-200/90 line-clamp-2 leading-tight">
+                  « {thirdPunchline} »
+                </p>
+              </div>
             </div>
           </motion.div>
         ) : (
@@ -153,41 +173,60 @@ export const GameOver: React.FC<GameOverProps> = ({
       </div>
 
       {/* Full Scoreboard list */}
-      <div className="w-full bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-5 shadow-xl">
+      <div className="w-full bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 sm:p-5 shadow-xl">
         <p className="text-xs uppercase tracking-widest text-white/60 font-bold mb-3 px-1">
-          Tous les scores
+          Tous les scores & verdicts
         </p>
 
-        <div className="flex flex-col gap-2">
-          {rankedPlayers.map((player, idx) => (
-            <div
-              key={player.id}
-              className={`flex items-center justify-between p-3.5 rounded-xl border transition-all ${
-                idx === 0
-                  ? 'bg-white/15 border-[#FB923C]/50 shadow-md'
-                  : 'bg-white/5 border-white/10'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <span className="w-6 font-black text-xs text-white/60">
-                  #{idx + 1}
-                </span>
-                <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs border border-[#1A1443]"
-                  style={{ backgroundColor: player.color }}
-                >
-                  {player.nickname.charAt(0)}
-                </div>
-                <span className="text-white font-bold text-sm">
-                  {player.nickname}
-                </span>
-              </div>
+        <div className="flex flex-col gap-2.5">
+          {rankedPlayers.map((player, idx) => {
+            const punchline = getPodiumPunchline(player.id, idx + 1, player.totalScore, party.code);
+            return (
+              <div
+                key={player.id}
+                className={`flex flex-col gap-1.5 p-3 sm:p-3.5 rounded-xl border transition-all ${
+                  idx === 0
+                    ? 'bg-white/15 border-[#FB923C]/50 shadow-md ring-1 ring-[#FB923C]/30'
+                    : 'bg-white/5 border-white/10'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                    <span className="w-5 sm:w-6 font-black text-xs text-white/60 shrink-0">
+                      #{idx + 1}
+                    </span>
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs border border-[#1A1443] shrink-0 uppercase"
+                      style={{ backgroundColor: player.color }}
+                    >
+                      {player.nickname.charAt(0)}
+                    </div>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-white font-bold text-sm sm:text-base truncate">
+                        {player.nickname}
+                      </span>
+                      {player.id === currentPlayerId && (
+                        <span className="text-[9px] bg-white/20 text-white font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider shrink-0">
+                          Vous
+                        </span>
+                      )}
+                    </div>
+                  </div>
 
-              <span className="text-white font-black text-sm sm:text-base">
-                {player.totalScore} pts
-              </span>
-            </div>
-          ))}
+                  <span className="text-white font-black text-sm sm:text-base shrink-0 ml-2">
+                    {player.totalScore} pts
+                  </span>
+                </div>
+
+                {/* Phrase personnalisée pour chaque joueur, visible par tous */}
+                <div className="pl-7 sm:pl-9 pr-1">
+                  <p className="text-xs sm:text-sm text-amber-200/90 italic font-medium leading-snug">
+                    💬 « {punchline} »
+                  </p>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 

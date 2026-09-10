@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Crown, Trophy, ArrowRight, Flag, LogOut } from 'lucide-react';
+import { Crown, Trophy, ArrowRight, Flag, LogOut, CheckCircle2, XCircle } from 'lucide-react';
 import { PartyDoc, Player } from '../types';
 import { nextRoundOrEnd } from '../services/gameService';
 import { sounds } from '../utils/soundEffects';
@@ -103,25 +103,58 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
                       </span>
                     )}
                   </div>
-                  <span className="text-[10px] sm:text-[11px] text-white/50 uppercase tracking-wider font-semibold block">
-                    {player.isHost ? 'Hôte' : 'Joueur'}
-                  </span>
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                    <span className="text-[10px] sm:text-[11px] text-white/50 uppercase tracking-wider font-semibold">
+                      {player.isHost ? 'Hôte' : 'Joueur'}
+                    </span>
+                    {player.currentAnswer && (
+                      <span
+                        className={`inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-bold px-1.5 py-0.5 rounded-md ${
+                          player.currentAnswer.isCorrect
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                            : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                        }`}
+                      >
+                        {player.currentAnswer.isCorrect ? (
+                          <>
+                            <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
+                            <span>
+                              {player.currentAnswer.mode === 'cash' ? '⚡ Cash' : '🔲 Carré'} : « {player.currentAnswer.answer} »
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <XCircle className="w-3 h-3 text-rose-400 shrink-0" />
+                            <span>
+                              {player.currentAnswer.mode === 'cash' ? '⚡ Cash' : '🔲 Carré'} : « {player.currentAnswer.answer || 'Temps écoulé'} »
+                            </span>
+                          </>
+                        )}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
 
               {/* Right: Score and Delta */}
               <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-                {/* Score Delta (+X pts in animated green) */}
-                {delta > 0 && (
-                  <motion.span
-                    initial={{ scale: 0, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ type: 'spring', stiffness: 400, damping: 15 }}
-                    className="text-emerald-400 font-black text-[11px] sm:text-sm bg-emerald-950/70 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-xl border border-emerald-500/40"
-                  >
-                    +{delta}
-                  </motion.span>
-                )}
+                {/* Score Delta (+X pts in animated green, or 0 pt in rose) */}
+                {player.currentAnswer ? (
+                  player.currentAnswer.isCorrect ? (
+                    <motion.span
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 15 }}
+                      className="text-emerald-400 font-black text-[11px] sm:text-sm bg-emerald-950/70 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-xl border border-emerald-500/40"
+                    >
+                      +{delta}
+                    </motion.span>
+                  ) : (
+                    <span className="text-rose-400 font-black text-[11px] sm:text-xs bg-rose-950/70 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-xl border border-rose-500/40">
+                      0 pt
+                    </span>
+                  )
+                ) : null}
 
                 {/* Total Score */}
                 <div className="text-right min-w-[50px] sm:min-w-[70px]">

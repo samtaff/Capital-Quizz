@@ -14,6 +14,7 @@ import {
   Trophy,
   Smartphone,
   Clock,
+  Users,
 } from 'lucide-react';
 import {
   GameQuestion,
@@ -762,6 +763,54 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                   </p>
                 </div>
 
+                {/* Multiplayer live feedback: See what other players answered */}
+                {Object.keys(party.players || {}).length > 1 && (
+                  <div className="w-full bg-black/35 border border-white/10 rounded-xl p-2.5 flex flex-col gap-1.5 text-left">
+                    <div className="text-[10px] uppercase font-black tracking-wider text-white/50 flex items-center gap-1.5">
+                      <Users className="w-3.5 h-3.5 text-[#FB923C]" />
+                      <span>Autres joueurs :</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(Object.values(party.players || {}) as Player[])
+                        .filter((p) => p.id !== currentPlayerId)
+                        .map((other) => {
+                          const otherAns = other.currentAnswer;
+                          return (
+                            <div
+                              key={other.id}
+                              className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg border text-[11px] font-bold ${
+                                otherAns
+                                  ? otherAns.isCorrect
+                                    ? 'bg-emerald-950/70 border-emerald-500/40 text-emerald-300'
+                                    : 'bg-rose-950/70 border-rose-500/40 text-rose-300'
+                                  : 'bg-white/5 border-white/10 text-white/60'
+                              }`}
+                            >
+                              <span
+                                className="w-2.5 h-2.5 rounded-full shrink-0"
+                                style={{ backgroundColor: other.color }}
+                              />
+                              <span className="truncate max-w-[85px]">{other.nickname}</span>
+                              {otherAns ? (
+                                otherAns.isCorrect ? (
+                                  <span className="text-emerald-400 text-[10px] font-black shrink-0">
+                                    ✓ +{otherAns.pointsEarned} ({otherAns.mode === 'cash' ? '⚡' : '🔲'})
+                                  </span>
+                                ) : (
+                                  <span className="text-rose-400 text-[10px] font-black shrink-0">
+                                    ✗ 0 pt ({otherAns.mode === 'cash' ? '⚡' : '🔲'})
+                                  </span>
+                                )
+                              ) : (
+                                <span className="text-amber-300/80 text-[10px] italic shrink-0">⏳ Réfléchit...</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
+
                 {/* Advance actions */}
                 <div className="flex items-center justify-center gap-2 w-full pt-0.5">
                   <button
@@ -818,21 +867,64 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                   {designatedPlayer?.nickname}
                 </div>
                 <div className="text-xs text-amber-300 font-bold">
-                  {designatedPlayer?.selectedMode
+                  {designatedPlayer?.currentAnswer
+                    ? `A répondu en mode ${designatedPlayer.currentAnswer.mode === 'cash' ? '⚡ CASH' : '🔲 CARRÉ'}`
+                    : designatedPlayer?.selectedMode
                     ? `A choisi le mode ${designatedPlayer.selectedMode === 'cash' ? '⚡ CASH' : '🔲 CARRÉ'}`
                     : 'En train de choisir son mode...'}
                 </div>
               </div>
             </div>
 
-            <div className="w-full bg-black/35 border border-white/10 rounded-xl py-2.5 px-3 flex items-center justify-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping" />
-              <span className="text-xs text-white/90 font-bold">
-                {designatedPlayer?.selectedMode
-                  ? `Réflexion en cours... Observe la réponse de ${designatedPlayer.nickname} !`
-                  : `En attente de la réponse de ${designatedPlayer?.nickname || 'son collègue'}...`}
-              </span>
-            </div>
+            {designatedPlayer?.currentAnswer ? (
+              <div className="w-full flex flex-col gap-2">
+                <div
+                  className={`w-full rounded-xl py-2.5 px-3 flex items-center justify-center gap-2 border shadow-md ${
+                    designatedPlayer.currentAnswer.isCorrect
+                      ? 'bg-emerald-950/80 border-emerald-500/50 text-emerald-300'
+                      : 'bg-rose-950/80 border-rose-500/50 text-rose-300'
+                  }`}
+                >
+                  {designatedPlayer.currentAnswer.isCorrect ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  ) : (
+                    <XCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                  )}
+                  <span className="text-xs font-black">
+                    {designatedPlayer.currentAnswer.isCorrect
+                      ? `Bonne réponse ! (+${designatedPlayer.currentAnswer.pointsEarned} pts)`
+                      : `Raté ! Réponse donnée : « ${designatedPlayer.currentAnswer.answer || 'Temps écoulé'} » (0 pt)`}
+                  </span>
+                </div>
+
+                {designatedPlayer.currentAnswer.punchline && (
+                  <div className="bg-black/35 border border-white/10 rounded-xl px-3 py-1.5 text-center">
+                    <p className="text-xs text-white/95 font-semibold italic">
+                      « {designatedPlayer.currentAnswer.punchline} »
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-center gap-2 w-full pt-1">
+                  <button
+                    onClick={handleAdvanceToMap}
+                    className="flex-1 flex items-center justify-center gap-1.5 bg-[#FB923C] hover:brightness-110 text-[#1A1443] font-black text-xs uppercase tracking-wider py-2 rounded-xl shadow-lg transition-all cursor-pointer"
+                  >
+                    <MapPin className="w-4 h-4" />
+                    <span>Voir la carte</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="w-full bg-black/35 border border-white/10 rounded-xl py-2.5 px-3 flex items-center justify-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping" />
+                <span className="text-xs text-white/90 font-bold">
+                  {designatedPlayer?.selectedMode
+                    ? `Réflexion en cours... Observe la réponse de ${designatedPlayer.nickname} !`
+                    : `En attente de la réponse de ${designatedPlayer?.nickname || 'son collègue'}...`}
+                </span>
+              </div>
+            )}
 
             {onOpenLeaderboard && (
               <button

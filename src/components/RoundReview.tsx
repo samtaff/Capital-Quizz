@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { CheckCircle, XCircle, ArrowRight, Trophy, SkipForward, Users, SpellCheck } from 'lucide-react';
+import { CheckCircle, XCircle, ArrowRight, Trophy, SkipForward, Users, SpellCheck, Lock } from 'lucide-react';
 import { GameQuestion, PartyDoc, Player } from '../types';
 import { WorldMap } from './WorldMap';
 import { showLeaderboard, nextRoundOrEnd } from '../services/gameService';
@@ -29,6 +29,9 @@ export const RoundReview: React.FC<RoundReviewProps> = ({
   const isEndOfRound = Boolean(party.isLocal && party.playerOrder && ((party.localTurnIndex || 0) + 1) % party.playerOrder.length === 0);
   const playersList: Player[] = Object.values(party.players || {});
   const isMultiplayer = playersList.length > 1;
+  const isOnlineMultiplayer = !party.isLocal && isMultiplayer;
+  const answeredCount = playersList.filter((p) => Boolean(p.currentAnswer)).length;
+  const allPlayersAnswered = answeredCount >= playersList.length;
 
   const [showSpellingDetail, setShowSpellingDetail] = useState(false);
   const hasCashSpellingError = Boolean(
@@ -39,11 +42,13 @@ export const RoundReview: React.FC<RoundReviewProps> = ({
   );
 
   const handleNext = () => {
+    if (isOnlineMultiplayer && !allPlayersAnswered) return;
     sounds.playClick();
     showLeaderboard(party.code);
   };
 
   const handleSkip = () => {
+    if (isOnlineMultiplayer && !allPlayersAnswered) return;
     sounds.playClick();
     nextRoundOrEnd(party.code);
   };
@@ -124,25 +129,32 @@ export const RoundReview: React.FC<RoundReviewProps> = ({
         {/* Right: Actions */}
         <div className="flex items-center gap-2 shrink-0">
           {isHost ? (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleNext}
-                className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 active:scale-95 text-white font-black uppercase tracking-wider px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl border border-white/15 transition-all cursor-pointer text-xs sm:text-sm"
-                title="Afficher le classement"
-              >
-                <Trophy className="w-3.5 h-3.5 text-amber-400" />
-                <span className="hidden sm:inline">Classement</span>
-              </button>
+            isOnlineMultiplayer && !allPlayersAnswered ? (
+              <div className="bg-amber-500/15 border border-amber-500/30 px-3 py-1.5 rounded-xl text-amber-200 text-[11px] sm:text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
+                <Lock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span>En attente ({answeredCount}/{playersList.length})</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleNext}
+                  className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 active:scale-95 text-white font-black uppercase tracking-wider px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl border border-white/15 transition-all cursor-pointer text-xs sm:text-sm"
+                  title="Afficher le classement"
+                >
+                  <Trophy className="w-3.5 h-3.5 text-amber-400" />
+                  <span className="hidden sm:inline">Classement</span>
+                </button>
 
-              <button
-                onClick={handleSkip}
-                className="flex items-center gap-1.5 bg-[#FB923C] hover:brightness-110 active:scale-95 text-[#1A1443] font-black uppercase tracking-wider px-3.5 sm:px-4.5 py-1.5 sm:py-2 rounded-xl shadow-lg shadow-[#FB923C]/20 transition-all cursor-pointer text-xs sm:text-sm hover:scale-[1.02]"
-                title="Passer à la suite"
-              >
-                <span>{party.isLocal ? (isEndOfRound ? 'Classement' : 'Joueur suivant') : 'Suivant'}</span>
-                <ArrowRight className="w-4 h-4 stroke-[2.5]" />
-              </button>
-            </div>
+                <button
+                  onClick={handleSkip}
+                  className="flex items-center gap-1.5 bg-[#FB923C] hover:brightness-110 active:scale-95 text-[#1A1443] font-black uppercase tracking-wider px-3.5 sm:px-4.5 py-1.5 sm:py-2 rounded-xl shadow-lg shadow-[#FB923C]/20 transition-all cursor-pointer text-xs sm:text-sm hover:scale-[1.02]"
+                  title="Passer à la suite"
+                >
+                  <span>{party.isLocal ? (isEndOfRound ? 'Classement' : 'Joueur suivant') : 'Suivant'}</span>
+                  <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+                </button>
+              </div>
+            )
           ) : (
             <div className="bg-white/10 px-3 py-1.5 rounded-xl border border-white/15 text-white/70 text-[11px] sm:text-xs font-bold uppercase tracking-wider flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-[#FB923C] animate-ping" />

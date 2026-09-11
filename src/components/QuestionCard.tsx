@@ -15,6 +15,7 @@ import {
   Smartphone,
   Clock,
   Users,
+  Lock,
 } from 'lucide-react';
 import {
   GameQuestion,
@@ -364,19 +365,54 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
     await submitPlayerAnswer(party.code, currentPlayerId, answerRecord);
   };
 
+  const playersList = Object.values(party.players || {}) as Player[];
+  const answeredCount = playersList.filter((p) => p.currentAnswer).length;
+  const totalPlayers = playersList.length;
+
+  const isOnlineMultiplayer = !party.isLocal && totalPlayers > 1;
+  const allPlayersAnswered = isWheelMode && hasDesignatedPlayer
+    ? Boolean(designatedPlayer?.currentAnswer)
+    : answeredCount >= totalPlayers;
+
+  // Host auto-submits timeout for any non-responsive online player once timer is fully expired
+  useEffect(() => {
+    if (!isHost || isUnlimited || party.isLocal || party.status !== 'question') return;
+
+    const checkTimeouts = () => {
+      const elapsed = (Date.now() - (party.roundStartTime || Date.now())) / 1000;
+      if (elapsed >= roundDuration) {
+        playersList.forEach((p) => {
+          if (!p.currentAnswer) {
+            submitTimeoutAnswer(party.code, p.id);
+          }
+        });
+      }
+    };
+
+    const interval = setInterval(checkTimeouts, 1000);
+    return () => clearInterval(interval);
+  }, [
+    isHost,
+    isUnlimited,
+    party.isLocal,
+    party.status,
+    party.roundStartTime,
+    roundDuration,
+    playersList,
+    party.code,
+  ]);
+
   const handleAdvanceToMap = async () => {
+    if (isOnlineMultiplayer && (!isHost || !allPlayersAnswered)) return;
     sounds.playClick();
     await showRoundMap(party.code);
   };
 
   const handleSkipMap = async () => {
+    if (isOnlineMultiplayer && (!isHost || !allPlayersAnswered)) return;
     sounds.playClick();
     await nextRoundOrEnd(party.code);
   };
-
-  const playersList = Object.values(party.players || {}) as Player[];
-  const answeredCount = playersList.filter((p) => p.currentAnswer).length;
-  const totalPlayers = playersList.length;
 
   // Local Pass & Play Handoff Screen
   if (party.isLocal && party.waitingForNextPlayer) {
@@ -816,29 +852,99 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                 )}
 
                 {/* Advance actions */}
-                <div className="flex items-center justify-center gap-2 w-full pt-0.5">
-                  <button
-                    onClick={handleAdvanceToMap}
-                    className="flex-1 flex items-center justify-center gap-1.5 bg-[#FB923C] hover:brightness-110 text-[#1A1443] font-black text-xs sm:text-sm uppercase tracking-wider py-2 sm:py-2.5 rounded-xl shadow-lg transition-all cursor-pointer hover:scale-[1.02] active:scale-95"
-                  >
-                    <MapPin className="w-4 h-4" />
-                    <span>Voir la carte</span>
-                  </button>
+                {isOnlineMultiplayer ? (
+                  !isHost ? (
+                    /* Non-host online multiplayer: waiting status */
+                    <div className="w-full pt-1">
+                      {!allPlayersAnswered ? (
+                        <div className="w-full bg-white/10 backdrop-blur-sm border border-white/15 rounded-xl py-2 px-3 text-center text-xs text-white/80 font-bold flex items-center justify-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-[#FB923C] animate-ping shrink-0" />
+                          <span>En attente des autres joueurs ({answeredCount}/{totalPlayers})...</span>
+                        </div>
+                      ) : (
+                        <div className="w-full bg-emerald-950/70 border border-emerald-500/40 rounded-xl py-2 px-3 text-center text-xs text-emerald-200 font-bold flex items-center justify-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                          <span>Tout le monde a répondu ! En attente de l'hôte...</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    /* Host online multiplayer */
+                    <div className="w-full flex flex-col gap-2 pt-0.5">
+                      {!allPlayersAnswered ? (
+                        <>
+                          <div className="w-full bg-amber-500/15 border border-amber-500/30 rounded-xl py-1.5 px-3 text-center text-xs text-amber-200 font-bold flex items-center justify-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping shrink-0" />
+                            <span>
+                              En attente que tout le monde réponde ({answeredCount}/{totalPlayers})
+                            </span>
+                          </div>
 
-                  <button
-                    onClick={handleSkipMap}
-                    className="flex-1 flex items-center justify-center gap-1.5 bg-white/20 hover:bg-white/30 text-white border border-white/20 font-black text-xs sm:text-sm uppercase tracking-wider py-2 sm:py-2.5 rounded-xl shadow-lg transition-all cursor-pointer hover:scale-[1.02] active:scale-95"
-                  >
-                    <SkipForward className="w-4 h-4" />
-                    <span>
-                      {party.isLocal
-                        ? isEndOfLocalRound
-                          ? 'Classement manche →'
-                          : 'Joueur suivant →'
-                        : 'Passer'}
-                    </span>
-                  </button>
-                </div>
+                          <div className="flex items-center justify-center gap-2 w-full">
+                            <button
+                              disabled
+                              title="Vous pourrez passer dès que tous les joueurs du salon auront répondu"
+                              className="flex-1 flex items-center justify-center gap-1.5 bg-white/10 text-white/40 border border-white/10 font-bold text-xs sm:text-sm uppercase tracking-wider py-2 sm:py-2.5 rounded-xl cursor-not-allowed opacity-60"
+                            >
+                              <Lock className="w-3.5 h-3.5" />
+                              <span>En attente ({answeredCount}/{totalPlayers})</span>
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="w-full bg-emerald-500/20 border border-emerald-500/40 rounded-xl py-1.5 px-3 text-center text-xs text-emerald-300 font-bold flex items-center justify-center gap-1.5">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                            <span>Tout le monde a répondu ! Vous pouvez continuer</span>
+                          </div>
+
+                          <div className="flex items-center justify-center gap-2 w-full">
+                            <button
+                              onClick={handleAdvanceToMap}
+                              className="flex-1 flex items-center justify-center gap-1.5 bg-[#FB923C] hover:brightness-110 text-[#1A1443] font-black text-xs sm:text-sm uppercase tracking-wider py-2 sm:py-2.5 rounded-xl shadow-lg transition-all cursor-pointer hover:scale-[1.02] active:scale-95"
+                            >
+                              <MapPin className="w-4 h-4" />
+                              <span>Voir la carte</span>
+                            </button>
+
+                            <button
+                              onClick={handleSkipMap}
+                              className="flex-1 flex items-center justify-center gap-1.5 bg-white/20 hover:bg-white/30 text-white border border-white/20 font-black text-xs sm:text-sm uppercase tracking-wider py-2 sm:py-2.5 rounded-xl shadow-lg transition-all cursor-pointer hover:scale-[1.02] active:scale-95"
+                            >
+                              <SkipForward className="w-4 h-4" />
+                              <span>Question suivante →</span>
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )
+                ) : (
+                  /* Local pass-and-play or solo */
+                  <div className="flex items-center justify-center gap-2 w-full pt-0.5">
+                    <button
+                      onClick={handleAdvanceToMap}
+                      className="flex-1 flex items-center justify-center gap-1.5 bg-[#FB923C] hover:brightness-110 text-[#1A1443] font-black text-xs sm:text-sm uppercase tracking-wider py-2 sm:py-2.5 rounded-xl shadow-lg transition-all cursor-pointer hover:scale-[1.02] active:scale-95"
+                    >
+                      <MapPin className="w-4 h-4" />
+                      <span>Voir la carte</span>
+                    </button>
+
+                    <button
+                      onClick={handleSkipMap}
+                      className="flex-1 flex items-center justify-center gap-1.5 bg-white/20 hover:bg-white/30 text-white border border-white/20 font-black text-xs sm:text-sm uppercase tracking-wider py-2 sm:py-2.5 rounded-xl shadow-lg transition-all cursor-pointer hover:scale-[1.02] active:scale-95"
+                    >
+                      <SkipForward className="w-4 h-4" />
+                      <span>
+                        {party.isLocal
+                          ? isEndOfLocalRound
+                            ? 'Classement manche →'
+                            : 'Joueur suivant →'
+                          : 'Passer'}
+                      </span>
+                    </button>
+                  </div>
+                )}
 
                 {onOpenLeaderboard && (
                   <button
@@ -910,13 +1016,20 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                 )}
 
                 <div className="flex items-center justify-center gap-2 w-full pt-1">
-                  <button
-                    onClick={handleAdvanceToMap}
-                    className="flex-1 flex items-center justify-center gap-1.5 bg-[#FB923C] hover:brightness-110 text-[#1A1443] font-black text-xs uppercase tracking-wider py-2 rounded-xl shadow-lg transition-all cursor-pointer"
-                  >
-                    <MapPin className="w-4 h-4" />
-                    <span>Voir la carte</span>
-                  </button>
+                  {isOnlineMultiplayer && !isHost ? (
+                    <div className="w-full bg-white/10 border border-white/15 rounded-xl py-2 px-3 text-center text-xs text-white/80 font-bold flex items-center justify-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-[#FB923C] animate-ping shrink-0" />
+                      <span>En attente de l'hôte pour la suite...</span>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleAdvanceToMap}
+                      className="flex-1 flex items-center justify-center gap-1.5 bg-[#FB923C] hover:brightness-110 text-[#1A1443] font-black text-xs uppercase tracking-wider py-2 rounded-xl shadow-lg transition-all cursor-pointer"
+                    >
+                      <MapPin className="w-4 h-4" />
+                      <span>Voir la carte</span>
+                    </button>
+                  )}
                 </div>
               </div>
             ) : (

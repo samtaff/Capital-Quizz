@@ -482,8 +482,15 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
     ((party.localTurnIndex || 0) + 1) % party.playerOrder.length === 0
   );
 
+  const isAnsweredState = Boolean(
+    isDesignatedPlayer
+      ? (alreadyAnswered || hasSubmittedLocally)
+      : Boolean(designatedPlayer?.currentAnswer)
+  );
+  const isTypingCash = selectedMode === 'cash' && !isAnsweredState;
+
   return (
-    <div className="w-full max-w-3xl mx-auto flex flex-col justify-between select-none px-2 sm:px-4 py-1 sm:py-2 min-h-[calc(100dvh-4.5rem)] max-h-[calc(100dvh-4.5rem)] overflow-hidden relative">
+    <div className="w-full max-w-3xl mx-auto flex flex-col justify-between select-none px-2 sm:px-4 py-1 sm:py-2 min-h-[calc(100dvh-4.5rem)] max-h-[calc(100dvh-4.5rem)] overflow-y-auto overflow-x-hidden relative scrollbar-none">
       {/* Immediate Screen Flash (Green for success, Soft red for failure) */}
       {flashColor && (
         <motion.div
@@ -577,42 +584,64 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
         </div>
       )}
 
-      {/* ================= MAIN QUESTION PRESENTATION (Zero-scroll, FlagImage) ================= */}
-      <main className="flex-1 flex flex-col items-center justify-center text-center my-auto py-1 shrink min-h-0">
+      {/* ================= MAIN QUESTION PRESENTATION (Responsive, FlagImage reduces when answered) ================= */}
+      <main className={`flex-1 flex flex-col items-center justify-center text-center shrink min-h-0 transition-all duration-300 ${isAnsweredState ? 'py-0.5 my-0' : 'py-1 my-auto'}`}>
         <div className="relative flex flex-col items-center w-full max-w-full">
-          {/* Wheel Sector Bonus / Continent Badge */}
-          {party.activeWheelSector && (
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-[11px] sm:text-xs font-black uppercase tracking-wider text-white shadow-lg mb-1.5 border border-white/30"
-              style={{ backgroundColor: party.activeWheelSector.color }}
-            >
-              <span className="text-sm">{party.activeWheelSector.icon}</span>
-              <span>{party.activeWheelSector.label}</span>
-              <span className="text-[10px] opacity-85 hidden sm:inline">
-                • {party.activeWheelSector.description}
-              </span>
-            </motion.div>
-          )}
+          {/* Wheel Sector Bonus & Difficulty Badges */}
+          <div className={`flex flex-wrap items-center justify-center gap-1 ${isAnsweredState ? 'mb-0.5' : 'mb-1'}`}>
+            {party.activeWheelSector && (
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className={`inline-flex items-center gap-1 rounded-full font-black uppercase tracking-wider text-white shadow-md border border-white/30 ${
+                  isAnsweredState ? 'px-2 py-0.5 text-[9px]' : 'px-3.5 py-1 text-[11px] sm:text-xs'
+                }`}
+                style={{ backgroundColor: party.activeWheelSector.color }}
+              >
+                <span className={isAnsweredState ? 'text-xs' : 'text-sm'}>{party.activeWheelSector.icon}</span>
+                <span>{party.activeWheelSector.label}</span>
+                {!isAnsweredState && (
+                  <span className="text-[10px] opacity-85 hidden sm:inline">
+                    • {party.activeWheelSector.description}
+                  </span>
+                )}
+              </motion.div>
+            )}
 
-          {/* Difficulty Badge */}
-          <div
-            className="px-3 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider mb-1 shadow-sm text-[#1A1443]"
-            style={{
-              backgroundColor: difficultyTheme.color,
-            }}
-          >
-            {difficultyTheme.label}
+            {/* Difficulty Badge */}
+            <div
+              className={`rounded-full font-black uppercase tracking-wider shadow-sm text-[#1A1443] ${
+                isAnsweredState ? 'px-2 py-0.2 text-[9px]' : 'px-3 py-0.5 text-[10px] sm:text-xs'
+              }`}
+              style={{
+                backgroundColor: difficultyTheme.color,
+              }}
+            >
+              {difficultyTheme.label}
+            </div>
           </div>
 
           {/* Country Name */}
-          <h1 className="text-2xl sm:text-4xl md:text-5xl font-black uppercase tracking-tight leading-tight mb-1 text-white drop-shadow-md px-2 max-w-full break-words">
+          <h1
+            className={`font-black uppercase tracking-tight leading-tight text-white drop-shadow-md px-2 max-w-full break-words transition-all duration-300 ${
+              isAnsweredState
+                ? 'text-base xs:text-lg sm:text-2xl md:text-3xl mb-0.5'
+                : 'text-2xl sm:text-4xl md:text-5xl mb-1'
+            }`}
+          >
             {question.country}
           </h1>
 
-          {/* Flag Showcase with real FlagImage component */}
-          <div className="w-44 h-28 sm:w-64 sm:h-40 md:w-72 md:h-44 rounded-2xl overflow-hidden shadow-2xl border-2 sm:border-3 border-white/25 bg-black/20 backdrop-blur-md flex items-center justify-center my-1.5 sm:my-2 ring-4 ring-white/10 transition-transform hover:scale-[1.02]">
+          {/* Flag Showcase with real FlagImage component - shrinks adaptively so everything fits on S22/mobile */}
+          <div
+            className={`overflow-hidden shadow-2xl bg-black/20 backdrop-blur-md flex items-center justify-center transition-all duration-300 ${
+              isAnsweredState
+                ? 'w-20 h-13 xs:w-24 xs:h-15 sm:w-32 sm:h-20 md:w-40 md:h-26 rounded-xl border-2 border-white/30 ring-2 ring-white/10 my-0.5 sm:my-1'
+                : isTypingCash
+                ? 'w-28 h-18 xs:w-32 xs:h-20 sm:w-44 sm:h-28 md:w-56 md:h-36 rounded-xl sm:rounded-2xl border-2 sm:border-3 border-white/25 ring-3 ring-white/10 my-1 sm:my-1.5'
+                : 'w-40 h-24 xs:w-48 xs:h-30 sm:w-64 sm:h-40 md:w-72 md:h-44 rounded-2xl border-2 sm:border-3 border-white/25 ring-4 ring-white/10 my-1.5 sm:my-2 hover:scale-[1.02]'
+            }`}
+          >
             <FlagImage
               countryId={question.countryId}
               countryName={question.country}
@@ -766,7 +795,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
 
               {/* Humor punchline banner and next actions */}
               <div
-                className={`w-full rounded-2xl p-3 sm:p-3.5 border shadow-2xl relative overflow-hidden backdrop-blur-md flex flex-col gap-2 ${
+                className={`w-full rounded-xl sm:rounded-2xl p-2.5 sm:p-3.5 border shadow-2xl relative overflow-hidden backdrop-blur-md flex flex-col gap-1.5 sm:gap-2 ${
                   isCorrect
                     ? 'bg-emerald-950/85 border-emerald-400/60'
                     : 'bg-rose-950/85 border-rose-400/60'
@@ -775,11 +804,11 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     {status === 'correct' ? (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 shrink-0" />
                     ) : status === 'minor_error' ? (
-                      <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                      <AlertCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 shrink-0" />
                     ) : (
-                      <XCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                      <XCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-400 shrink-0" />
                     )}
                     <h3 className="text-xs sm:text-sm font-black text-white uppercase tracking-wide">
                       {!isDesignatedPlayer
@@ -795,7 +824,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                   </div>
 
                   <div
-                    className={`px-2 py-0.5 rounded-full text-[11px] font-black border ${
+                    className={`px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-black border ${
                       isCorrect
                         ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
                         : 'bg-rose-500/20 text-rose-300 border-rose-500/40'
@@ -806,8 +835,8 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                 </div>
 
                 {/* Random Humor Message */}
-                <div className="bg-black/35 border border-white/10 rounded-xl px-3 py-1.5 text-center">
-                  <p className="text-xs sm:text-sm text-white/95 font-semibold italic leading-snug">
+                <div className="bg-black/35 border border-white/10 rounded-xl px-2.5 sm:px-3 py-1 sm:py-1.5 text-center">
+                  <p className="text-[11px] sm:text-xs md:text-sm text-white/95 font-semibold italic leading-snug">
                     « {punchline} »
                   </p>
                 </div>

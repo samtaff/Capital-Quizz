@@ -44,25 +44,25 @@ export const CashSpellingFeedback: React.FC<CashSpellingFeedbackProps> = ({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -3 }}
       transition={{ duration: 0.18 }}
-      className={`w-full rounded-xl p-2.5 sm:p-3 border flex flex-col gap-2 shadow-lg max-w-full overflow-hidden ${
+      className={`w-full rounded-xl p-2 sm:p-2.5 border flex flex-col gap-1.5 sm:gap-2 shadow-lg max-w-full overflow-hidden ${
         isAcceptedWithTolerance
           ? 'bg-gradient-to-br from-amber-950/80 to-[#1e174b]/90 border-amber-500/40 text-amber-100'
           : 'bg-gradient-to-br from-rose-950/80 to-[#1e174b]/90 border-rose-500/40 text-rose-100'
       }`}
     >
       {/* En-tête compact : Qui / Statut / Points / Fermeture optionnelle */}
-      <div className="flex items-center justify-between gap-2 text-xs w-full">
+      <div className="flex items-center justify-between gap-1.5 text-xs w-full">
         <div className="flex items-center gap-1.5 min-w-0">
           {isAcceptedWithTolerance ? (
-            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+            <AlertTriangle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 shrink-0" />
           ) : (
-            <XCircle className="w-4 h-4 text-rose-400 shrink-0" />
+            <XCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-400 shrink-0" />
           )}
-          <span className="font-extrabold uppercase tracking-wide text-[11px] sm:text-xs truncate">
+          <span className="font-extrabold uppercase tracking-wide text-[10px] sm:text-xs truncate">
             {playerName ? `Réponse de ${playerName}` : 'Correction orthographique'}
           </span>
           <span
-            className={`hidden sm:inline-block text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${
+            className={`hidden sm:inline-block text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${
               isAcceptedWithTolerance
                 ? 'bg-amber-500/25 text-amber-300'
                 : 'bg-rose-500/25 text-rose-300'
@@ -74,11 +74,11 @@ export const CashSpellingFeedback: React.FC<CashSpellingFeedbackProps> = ({
 
         <div className="flex items-center gap-1.5 shrink-0 ml-auto">
           {isAcceptedWithTolerance ? (
-            <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md font-black bg-amber-500/20 text-amber-300 border border-amber-500/35">
+            <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] px-1.5 sm:px-2 py-0.5 rounded-md font-black bg-amber-500/20 text-amber-300 border border-amber-500/35">
               +{pointsEarned ?? 0} pts
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md font-black bg-rose-500/20 text-rose-300 border border-rose-500/35">
+            <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] px-1.5 sm:px-2 py-0.5 rounded-md font-black bg-rose-500/20 text-rose-300 border border-rose-500/35">
               0 pt
             </span>
           )}
@@ -96,7 +96,7 @@ export const CashSpellingFeedback: React.FC<CashSpellingFeedbackProps> = ({
       </div>
 
       {/* Bloc de comparaison responsive : s'adapte sans déborder ni casser les mots */}
-      <div className="w-full bg-black/40 rounded-lg p-2 border border-white/10 flex flex-col xs:flex-row xs:items-center justify-between gap-1.5 text-xs sm:text-sm">
+      <div className="w-full bg-black/40 rounded-lg p-1.5 sm:p-2 border border-white/10 flex flex-col xs:flex-row xs:items-center justify-between gap-1 sm:gap-1.5 text-xs sm:text-sm">
         {/* Saisie avec mise en relief des fautes */}
         <div className="flex items-center gap-1.5 min-w-0 flex-1 flex-wrap">
           <span className="text-white/50 text-[10px] sm:text-[11px] font-bold uppercase shrink-0">

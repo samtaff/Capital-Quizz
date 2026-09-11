@@ -34,12 +34,23 @@ export const RoundReview: React.FC<RoundReviewProps> = ({
   const allPlayersAnswered = answeredCount >= playersList.length;
 
   const [showSpellingDetail, setShowSpellingDetail] = useState(false);
-  const hasCashSpellingError = Boolean(
-    roundAnswer?.mode === 'cash' &&
-    ((roundAnswer.levenshteinDistance !== undefined && roundAnswer.levenshteinDistance > 0) ||
-      roundAnswer.spellingAnalysis?.hasTypo ||
-      (roundAnswer.isCorrect && roundAnswer.scoreFactor < 1))
-  );
+  const [selectedTypoPlayerId, setSelectedTypoPlayerId] = useState<string | null>(null);
+
+  // Tous les joueurs ayant fait une faute d'orthographe en mode Cash
+  const playersWithCashTypo = playersList.filter((p) => {
+    const a = p.currentAnswer;
+    return Boolean(
+      a?.mode === 'cash' &&
+      ((a.levenshteinDistance !== undefined && a.levenshteinDistance > 0) ||
+        a.spellingAnalysis?.hasTypo ||
+        (a.isCorrect && a.scoreFactor < 1))
+    );
+  });
+
+  const activeTypoPlayer = selectedTypoPlayerId
+    ? party.players?.[selectedTypoPlayerId]
+    : (playersWithCashTypo.find((p) => p.id === currentPlayerId) || playersWithCashTypo[0]);
+  const activeTypoAnswer = activeTypoPlayer?.currentAnswer;
 
   const handleNext = () => {
     if (isOnlineMultiplayer && !allPlayersAnswered) return;
@@ -111,15 +122,29 @@ export const RoundReview: React.FC<RoundReviewProps> = ({
                 </span>
               </div>
 
-              {hasCashSpellingError && (
+              {playersWithCashTypo.length > 0 && (
                 <button
                   type="button"
-                  onClick={() => setShowSpellingDetail(!showSpellingDetail)}
-                  className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-black uppercase px-2 py-0.5 rounded-md bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition-all cursor-pointer shadow-sm"
-                  title="Voir les erreurs d'orthographe de votre réponse Cash"
+                  onClick={() => {
+                    if (!showSpellingDetail) {
+                      const defaultId =
+                        playersWithCashTypo.find((p) => p.id === currentPlayerId)?.id ||
+                        playersWithCashTypo[0]?.id;
+                      setSelectedTypoPlayerId(defaultId);
+                      setShowSpellingDetail(true);
+                    } else {
+                      setShowSpellingDetail(false);
+                    }
+                  }}
+                  className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-black uppercase px-2 py-0.5 rounded-md bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition-all cursor-pointer shadow-sm shrink-0"
+                  title="Voir les erreurs d'orthographe en mode Cash"
                 >
                   <SpellCheck className="w-3 h-3 text-amber-400" />
-                  <span>{showSpellingDetail ? 'Masquer erreurs' : 'Détail fautes Cash'}</span>
+                  <span>
+                    {showSpellingDetail
+                      ? 'Masquer fautes'
+                      : `Fautes Cash (${playersWithCashTypo.length})`}
+                  </span>
                 </button>
               )}
             </div>
@@ -167,26 +192,59 @@ export const RoundReview: React.FC<RoundReviewProps> = ({
 
       {/* Cash Spelling Feedback Expanded */}
       <AnimatePresence>
-        {showSpellingDetail && hasCashSpellingError && roundAnswer && (
+        {showSpellingDetail && activeTypoAnswer && activeTypoPlayer && (
           <motion.div
             initial={{ opacity: 0, y: -6, height: 0 }}
             animate={{ opacity: 1, y: 0, height: 'auto' }}
             exit={{ opacity: 0, y: -6, height: 0 }}
             transition={{ duration: 0.2 }}
-            className="w-full shrink-0 overflow-hidden"
+            className="w-full shrink-0 flex flex-col gap-1.5"
           >
+            {/* Si plusieurs joueurs ont fait des fautes, onglets de sélection rapides */}
+            {playersWithCashTypo.length > 1 && (
+              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5 px-1">
+                <span className="text-white/60 text-[10px] font-extrabold uppercase shrink-0">
+                  Joueur :
+                </span>
+                {playersWithCashTypo.map((p) => {
+                  const isSelected = p.id === activeTypoPlayer.id;
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => setSelectedTypoPlayerId(p.id)}
+                      className={`px-2 py-0.5 rounded-md text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 border ${
+                        isSelected
+                          ? 'bg-[#FB923C] text-[#1A1443] border-[#FB923C] shadow-sm'
+                          : 'bg-white/10 text-white/80 hover:bg-white/20 border-white/10'
+                      }`}
+                    >
+                      <span
+                        className="w-2 h-2 rounded-full shrink-0"
+                        style={{ backgroundColor: p.color }}
+                      />
+                      <span>{p.id === currentPlayerId ? `${p.nickname} (Vous)` : p.nickname}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
             <CashSpellingFeedback
-              userInput={roundAnswer.answer}
+              userInput={activeTypoAnswer.answer}
               correctAnswer={question.capital}
-              analysis={roundAnswer.spellingAnalysis}
+              analysis={activeTypoAnswer.spellingAnalysis}
               status={
-                roundAnswer.isCorrect
-                  ? roundAnswer.scoreFactor < 1
+                activeTypoAnswer.isCorrect
+                  ? activeTypoAnswer.scoreFactor < 1
                     ? 'minor_error'
                     : 'correct'
                   : 'wrong'
               }
-              pointsEarned={roundAnswer.pointsEarned}
+              pointsEarned={activeTypoAnswer.pointsEarned}
+              playerName={
+                activeTypoPlayer.id === currentPlayerId ? undefined : activeTypoPlayer.nickname
+              }
+              onClose={() => setShowSpellingDetail(false)}
             />
           </motion.div>
         )}
@@ -211,17 +269,32 @@ export const RoundReview: React.FC<RoundReviewProps> = ({
               const isCorrect = ans?.isCorrect ?? false;
               const points = ans?.pointsEarned ?? 0;
               const isCurrent = p.id === currentPlayerId;
+              const hasTypo = Boolean(
+                ans?.mode === 'cash' &&
+                ((ans.levenshteinDistance !== undefined && ans.levenshteinDistance > 0) ||
+                  ans.spellingAnalysis?.hasTypo ||
+                  (ans.isCorrect && ans.scoreFactor < 1))
+              );
 
               return (
                 <div
                   key={p.id}
+                  onClick={() => {
+                    if (hasTypo) {
+                      setSelectedTypoPlayerId(p.id);
+                      setShowSpellingDetail(true);
+                    }
+                  }}
                   className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold transition-all shrink-0 shadow-sm ${
+                    hasTypo ? 'cursor-pointer hover:scale-[1.02]' : ''
+                  } ${
                     hasAns
                       ? isCorrect
                         ? 'bg-emerald-950/70 border-emerald-400/50 text-emerald-300'
                         : 'bg-rose-950/70 border-rose-400/50 text-rose-300'
                       : 'bg-white/5 border-white/10 text-white/60'
                   } ${isCurrent ? 'ring-1 ring-white/50' : ''}`}
+                  title={hasTypo ? "Cliquer pour voir la correction d'orthographe" : undefined}
                 >
                   <div
                     className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-black border border-[#1A1443] shrink-0 uppercase"
@@ -252,6 +325,13 @@ export const RoundReview: React.FC<RoundReviewProps> = ({
                     )
                   ) : (
                     <span className="text-[10px] text-white/50 italic">Temps écoulé</span>
+                  )}
+
+                  {hasTypo && (
+                    <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.2 rounded bg-amber-500/30 text-amber-200 border border-amber-500/40 uppercase font-black shrink-0">
+                      <SpellCheck className="w-2.5 h-2.5 text-amber-300" />
+                      <span>Faute</span>
+                    </span>
                   )}
                 </div>
               );

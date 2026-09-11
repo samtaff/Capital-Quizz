@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, XCircle, X } from 'lucide-react';
 import { SpellingAnalysis } from '../types';
 import { computeSpellingAnalysis } from '../utils/levenshtein';
 
@@ -10,6 +10,8 @@ interface CashSpellingFeedbackProps {
   analysis?: SpellingAnalysis;
   status: 'minor_error' | 'wrong' | 'correct';
   pointsEarned?: number;
+  playerName?: string;
+  onClose?: () => void;
 }
 
 export const CashSpellingFeedback: React.FC<CashSpellingFeedbackProps> = ({
@@ -18,6 +20,8 @@ export const CashSpellingFeedback: React.FC<CashSpellingFeedbackProps> = ({
   analysis: providedAnalysis,
   status,
   pointsEarned,
+  playerName,
+  onClose,
 }) => {
   const analysis = React.useMemo(() => {
     if (providedAnalysis) return providedAnalysis;
@@ -36,106 +40,138 @@ export const CashSpellingFeedback: React.FC<CashSpellingFeedbackProps> = ({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 4 }}
+      initial={{ opacity: 0, y: 3 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2 }}
-      className={`w-full rounded-xl px-3 sm:px-3.5 py-2 sm:py-2.5 border flex flex-col gap-1.5 shadow-md ${
+      exit={{ opacity: 0, y: -3 }}
+      transition={{ duration: 0.18 }}
+      className={`w-full rounded-xl p-2.5 sm:p-3 border flex flex-col gap-2 shadow-lg max-w-full overflow-hidden ${
         isAcceptedWithTolerance
-          ? 'bg-amber-950/60 border-amber-500/40 text-amber-100'
-          : 'bg-rose-950/60 border-rose-500/40 text-rose-100'
+          ? 'bg-gradient-to-br from-amber-950/80 to-[#1e174b]/90 border-amber-500/40 text-amber-100'
+          : 'bg-gradient-to-br from-rose-950/80 to-[#1e174b]/90 border-rose-500/40 text-rose-100'
       }`}
     >
-      {/* Ligne principale : Comparaison discrète Saisie ➜ Bonne orthographe + Badge points */}
-      <div className="flex items-center justify-between gap-2 text-xs sm:text-sm flex-wrap">
-        <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-          <span className="text-white/60 text-[11px] font-bold uppercase shrink-0">
-            Votre réponse :
+      {/* En-tête compact : Qui / Statut / Points / Fermeture optionnelle */}
+      <div className="flex items-center justify-between gap-2 text-xs w-full">
+        <div className="flex items-center gap-1.5 min-w-0">
+          {isAcceptedWithTolerance ? (
+            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+          ) : (
+            <XCircle className="w-4 h-4 text-rose-400 shrink-0" />
+          )}
+          <span className="font-extrabold uppercase tracking-wide text-[11px] sm:text-xs truncate">
+            {playerName ? `Réponse de ${playerName}` : 'Correction orthographique'}
           </span>
+          <span
+            className={`hidden sm:inline-block text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${
+              isAcceptedWithTolerance
+                ? 'bg-amber-500/25 text-amber-300'
+                : 'bg-rose-500/25 text-rose-300'
+            }`}
+          >
+            {isAcceptedWithTolerance ? 'Faute tolérée (50%)' : 'Réponse incorrecte'}
+          </span>
+        </div>
 
-          {/* Saisie joueur avec surlignage des fautes */}
-          <span className="inline-flex items-center tracking-wide font-bold">
+        <div className="flex items-center gap-1.5 shrink-0 ml-auto">
+          {isAcceptedWithTolerance ? (
+            <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md font-black bg-amber-500/20 text-amber-300 border border-amber-500/35">
+              +{pointsEarned ?? 0} pts
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md font-black bg-rose-500/20 text-rose-300 border border-rose-500/35">
+              0 pt
+            </span>
+          )}
+
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="p-1 rounded-md text-white/50 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              title="Fermer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Bloc de comparaison responsive : s'adapte sans déborder ni casser les mots */}
+      <div className="w-full bg-black/40 rounded-lg p-2 border border-white/10 flex flex-col xs:flex-row xs:items-center justify-between gap-1.5 text-xs sm:text-sm">
+        {/* Saisie avec mise en relief des fautes */}
+        <div className="flex items-center gap-1.5 min-w-0 flex-1 flex-wrap">
+          <span className="text-white/50 text-[10px] sm:text-[11px] font-bold uppercase shrink-0">
+            Saisie :
+          </span>
+          <div className="inline-flex flex-wrap items-center font-mono font-bold tracking-wider text-xs sm:text-sm break-all">
             {analysis.inputChars.map((item, idx) => (
               <span
                 key={`in-${idx}`}
                 className={
                   item.type === 'wrong' || item.type === 'extra'
-                    ? 'bg-rose-500/40 text-rose-200 border-b border-rose-400 font-black px-0.5 rounded-sm'
+                    ? 'bg-rose-500/50 text-rose-100 border-b-2 border-rose-400 font-black px-0.5 rounded-sm mx-px'
                     : 'text-white/90'
                 }
                 title={
                   item.type === 'wrong'
-                    ? 'Lettre incorrecte'
+                    ? `« ${item.char} » est incorrect`
                     : item.type === 'extra'
-                    ? 'Lettre en trop'
+                    ? `« ${item.char} » est en trop`
                     : undefined
                 }
               >
                 {item.char}
               </span>
             ))}
+          </div>
+        </div>
+
+        {/* Flèche de transition */}
+        <span className="text-white/40 text-xs px-1 self-center hidden xs:inline">➜</span>
+
+        {/* Bonne orthographe attendue avec lettres corrigées */}
+        <div className="flex items-center gap-1.5 min-w-0 flex-1 flex-wrap xs:justify-end">
+          <span className="text-emerald-400/70 text-[10px] sm:text-[11px] font-bold uppercase shrink-0">
+            Correct :
           </span>
-
-          <span className="text-white/40 text-xs mx-0.5">➜</span>
-
-          {/* Orthographe correcte avec lettres corrigées/manquantes surlignées */}
-          <span className="inline-flex items-center tracking-wide text-emerald-300 font-extrabold uppercase">
+          <div className="inline-flex flex-wrap items-center font-mono font-extrabold uppercase tracking-wider text-xs sm:text-sm break-all">
             {analysis.targetChars.map((item, idx) => (
               <span
                 key={`tg-${idx}`}
                 className={
                   item.type === 'corrected' || item.type === 'missing'
-                    ? 'bg-emerald-500/30 text-emerald-200 border-b-2 border-emerald-400 font-black px-0.5 rounded-sm'
+                    ? 'bg-emerald-500/40 text-emerald-100 border-b-2 border-emerald-400 font-black px-0.5 rounded-sm mx-px'
                     : 'text-emerald-300'
                 }
                 title={
                   item.type === 'missing'
-                    ? 'Lettre qui manquait'
+                    ? `Lettre manquante : ${item.char}`
                     : item.type === 'corrected'
-                    ? 'Orthographe exacte'
+                    ? `Orthographe attendue : ${item.char}`
                     : undefined
                 }
               >
                 {item.char}
               </span>
             ))}
-          </span>
-        </div>
-
-        {/* Badge de points compact */}
-        <div className="shrink-0 ml-auto">
-          {isAcceptedWithTolerance ? (
-            <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-              <AlertTriangle className="w-3 h-3 text-amber-400 shrink-0" />
-              +{pointsEarned} pts
-              <span className="text-[10px] font-medium opacity-80">(Tolérance)</span>
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
-              <XCircle className="w-3 h-3 text-rose-400 shrink-0" />
-              0 pt
-            </span>
-          )}
+          </div>
         </div>
       </div>
 
-      {/* Sous-ligne discrète d'explication textuelle */}
-      <div className="flex items-center gap-1 text-[10px] sm:text-[11px] opacity-80 pt-0.5 border-t border-white/5">
-        {isAcceptedWithTolerance ? (
-          <>
-            <span className="text-amber-300 font-semibold">Faute tolérée :</span>
-            <span className="text-white/80">
-              {analysis.summaryMessage || 'Petite faute acceptée avec 50% des points'}
-            </span>
-          </>
-        ) : (
-          <>
-            <span className="text-rose-300 font-semibold">Bonne réponse attendue :</span>
-            <span className="text-emerald-300 font-bold uppercase">{correctAnswer}</span>
-            {analysis.distance <= 2 && analysis.summaryMessage && (
-              <span className="text-white/60 ml-1">({analysis.summaryMessage})</span>
-            )}
-          </>
-        )}
+      {/* Explication en français simplifiée */}
+      <div className="w-full flex items-center gap-1.5 text-[10px] sm:text-[11px] text-white/80 pt-0.5">
+        <span
+          className={`font-semibold shrink-0 ${
+            isAcceptedWithTolerance ? 'text-amber-300' : 'text-rose-300'
+          }`}
+        >
+          {isAcceptedWithTolerance ? 'Détail :' : 'Attendu :'}
+        </span>
+        <span className="truncate text-white/90">
+          {analysis.summaryMessage ||
+            (isAcceptedWithTolerance
+              ? 'Petite faute acceptée avec 50% des points'
+              : `La bonne réponse attendue était « ${correctAnswer} »`)}
+        </span>
       </div>
     </motion.div>
   );

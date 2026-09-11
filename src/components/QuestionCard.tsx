@@ -89,6 +89,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   const [selectedCarreOption, setSelectedCarreOption] = useState<string | null>(null);
   const [submittedAnswerText, setSubmittedAnswerText] = useState<string>('');
   const [activePunchline, setActivePunchline] = useState<string>('');
+  const [inspectedOtherPlayerId, setInspectedOtherPlayerId] = useState<string | null>(null);
   const [localFeedback, setLocalFeedback] = useState<{
     status: 'correct' | 'minor_error' | 'wrong' | null;
     message: string;
@@ -117,6 +118,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
     setSelectedCarreOption(null);
     setSubmittedAnswerText('');
     setActivePunchline('');
+    setInspectedOtherPlayerId(null);
     setLocalFeedback({ status: null, message: '', points: 0 });
 
     if (!isUnlimited) {
@@ -626,12 +628,18 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
         {/* State 1: Answered Feedback (Self or Designated Player) */}
         {(isDesignatedPlayer ? (alreadyAnswered || hasSubmittedLocally) : Boolean(designatedPlayer?.currentAnswer)) ? (() => {
           const currentAns = isDesignatedPlayer ? currentPlayer?.currentAnswer : designatedPlayer?.currentAnswer;
+          const hasCashTypo = Boolean(
+            currentAns?.mode === 'cash' &&
+            ((currentAns.levenshteinDistance !== undefined && currentAns.levenshteinDistance > 0) ||
+              currentAns.spellingAnalysis?.hasTypo ||
+              (currentAns.isCorrect && currentAns.scoreFactor < 1))
+          );
           const isCorrect = isDesignatedPlayer && localFeedback.status
             ? (localFeedback.status === 'correct' || localFeedback.status === 'minor_error')
             : (currentAns?.isCorrect ?? false);
           const status = isDesignatedPlayer && localFeedback.status
             ? localFeedback.status
-            : (currentAns?.isCorrect ? 'correct' : 'wrong');
+            : (currentAns?.isCorrect ? (hasCashTypo ? 'minor_error' : 'correct') : 'wrong');
           const points = isDesignatedPlayer && localFeedback.status
             ? localFeedback.points
             : (currentAns?.pointsEarned ?? 0);
@@ -735,6 +743,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                       }
                       status={status}
                       pointsEarned={points}
+                      playerName={isDesignatedPlayer ? undefined : designatedPlayer?.nickname}
                     />
                   )}
                 </div>
@@ -804,27 +813,61 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                 </div>
 
                 {/* Multiplayer live feedback: See what other players answered */}
-                {Object.keys(party.players || {}).length > 1 && (
-                  <div className="w-full bg-black/35 border border-white/10 rounded-xl p-2.5 flex flex-col gap-1.5 text-left">
-                    <div className="text-[10px] uppercase font-black tracking-wider text-white/50 flex items-center gap-1.5">
-                      <Users className="w-3.5 h-3.5 text-[#FB923C]" />
-                      <span>Autres joueurs :</span>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {(Object.values(party.players || {}) as Player[])
-                        .filter((p) => p.id !== currentPlayerId)
-                        .map((other) => {
+                {Object.keys(party.players || {}).length > 1 && (() => {
+                  const otherPlayers = (Object.values(party.players || {}) as Player[])
+                    .filter((p) => p.id !== currentPlayerId);
+                  const inspectedPlayer = otherPlayers.find((p) => p.id === inspectedOtherPlayerId);
+                  const inspectedAns = inspectedPlayer?.currentAnswer;
+
+                  return (
+                    <div className="w-full bg-black/35 border border-white/10 rounded-xl p-2.5 flex flex-col gap-1.5 text-left">
+                      <div className="text-[10px] uppercase font-black tracking-wider text-white/50 flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <Users className="w-3.5 h-3.5 text-[#FB923C]" />
+                          <span>Autres joueurs :</span>
+                        </div>
+                        {inspectedOtherPlayerId && (
+                          <button
+                            type="button"
+                            onClick={() => setInspectedOtherPlayerId(null)}
+                            className="text-[10px] text-white/60 hover:text-white underline cursor-pointer"
+                          >
+                            Fermer détail
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap gap-1.5">
+                        {otherPlayers.map((other) => {
                           const otherAns = other.currentAnswer;
+                          const hasTypo = Boolean(
+                            otherAns?.mode === 'cash' &&
+                            ((otherAns.levenshteinDistance !== undefined && otherAns.levenshteinDistance > 0) ||
+                              otherAns.spellingAnalysis?.hasTypo ||
+                              (otherAns.isCorrect && otherAns.scoreFactor < 1))
+                          );
+                          const isInspected = inspectedOtherPlayerId === other.id;
+
                           return (
                             <div
                               key={other.id}
-                              className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg border text-[11px] font-bold ${
+                              onClick={() => {
+                                if (hasTypo) {
+                                  setInspectedOtherPlayerId(isInspected ? null : other.id);
+                                }
+                              }}
+                              className={`flex items-center gap-1.5 px-2 py-0.5 rounded-lg border text-[11px] font-bold transition-all ${
+                                hasTypo ? 'cursor-pointer hover:scale-[1.02]' : ''
+                              } ${
+                                isInspected ? 'ring-2 ring-amber-400' : ''
+                              } ${
                                 otherAns
                                   ? otherAns.isCorrect
                                     ? 'bg-emerald-950/70 border-emerald-500/40 text-emerald-300'
                                     : 'bg-rose-950/70 border-rose-500/40 text-rose-300'
                                   : 'bg-white/5 border-white/10 text-white/60'
                               }`}
+                              title={hasTypo ? "Cliquer pour voir la correction d'orthographe" : undefined}
                             >
                               <span
                                 className="w-2.5 h-2.5 rounded-full shrink-0"
@@ -844,12 +887,40 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                               ) : (
                                 <span className="text-amber-300/80 text-[10px] italic shrink-0">⏳ Réfléchit...</span>
                               )}
+
+                              {hasTypo && (
+                                <span className="text-[9px] px-1 py-0.2 rounded bg-amber-500/30 text-amber-200 border border-amber-500/40 font-black shrink-0">
+                                  Faute
+                                </span>
+                              )}
                             </div>
                           );
                         })}
+                      </div>
+
+                      {/* Inspecter en direct l'orthographe d'un autre joueur */}
+                      {inspectedPlayer && inspectedAns && inspectedAns.mode === 'cash' && (
+                        <div className="pt-1 w-full">
+                          <CashSpellingFeedback
+                            userInput={inspectedAns.answer}
+                            correctAnswer={question.capital}
+                            analysis={inspectedAns.spellingAnalysis}
+                            status={
+                              inspectedAns.isCorrect
+                                ? inspectedAns.scoreFactor < 1
+                                  ? 'minor_error'
+                                  : 'correct'
+                                : 'wrong'
+                            }
+                            pointsEarned={inspectedAns.pointsEarned}
+                            playerName={inspectedPlayer.nickname}
+                            onClose={() => setInspectedOtherPlayerId(null)}
+                          />
+                        </div>
+                      )}
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* Advance actions */}
                 {isOnlineMultiplayer ? (
@@ -1006,6 +1077,26 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                       : `Raté ! Réponse donnée : « ${designatedPlayer.currentAnswer.answer || 'Temps écoulé'} » (0 pt)`}
                   </span>
                 </div>
+
+                {designatedPlayer.currentAnswer.mode === 'cash' && (
+                  <CashSpellingFeedback
+                    userInput={designatedPlayer.currentAnswer.answer}
+                    correctAnswer={question.capital}
+                    analysis={designatedPlayer.currentAnswer.spellingAnalysis}
+                    status={
+                      designatedPlayer.currentAnswer.isCorrect
+                        ? (designatedPlayer.currentAnswer.scoreFactor < 1 ||
+                           (designatedPlayer.currentAnswer.levenshteinDistance !== undefined &&
+                             designatedPlayer.currentAnswer.levenshteinDistance > 0) ||
+                           designatedPlayer.currentAnswer.spellingAnalysis?.hasTypo)
+                          ? 'minor_error'
+                          : 'correct'
+                        : 'wrong'
+                    }
+                    pointsEarned={designatedPlayer.currentAnswer.pointsEarned}
+                    playerName={designatedPlayer.nickname}
+                  />
+                )}
 
                 {designatedPlayer.currentAnswer.punchline && (
                   <div className="bg-black/35 border border-white/10 rounded-xl px-3 py-1.5 text-center">

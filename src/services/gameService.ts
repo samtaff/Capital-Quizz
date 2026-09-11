@@ -458,6 +458,12 @@ export async function setPlayerMode(
   });
 }
 
+function sanitizeFirestoreObject<T>(obj: T): T {
+  return JSON.parse(
+    JSON.stringify(obj, (_key, value) => (value === undefined ? null : value))
+  );
+}
+
 /**
  * Soumet la réponse d'un joueur
  */
@@ -484,9 +490,10 @@ export async function submitPlayerAnswer(
 
   const party = snap.data() as PartyDoc;
   const currentTotal = party.players?.[playerId]?.totalScore || 0;
+  const sanitizedAnswer = sanitizeFirestoreObject(answer);
 
   await updateDoc(partyRef, {
-    [`players.${playerId}.currentAnswer`]: answer,
+    [`players.${playerId}.currentAnswer`]: sanitizedAnswer,
     [`players.${playerId}.totalScore`]: currentTotal + answer.pointsEarned,
     [`players.${playerId}.lastRoundDelta`]: answer.pointsEarned,
   });

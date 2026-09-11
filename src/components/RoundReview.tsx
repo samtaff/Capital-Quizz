@@ -1,11 +1,12 @@
-import React from 'react';
-import { motion } from 'motion/react';
-import { CheckCircle, XCircle, ArrowRight, Trophy, SkipForward, Users } from 'lucide-react';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { CheckCircle, XCircle, ArrowRight, Trophy, SkipForward, Users, SpellCheck } from 'lucide-react';
 import { GameQuestion, PartyDoc, Player } from '../types';
 import { WorldMap } from './WorldMap';
 import { showLeaderboard, nextRoundOrEnd } from '../services/gameService';
 import { sounds } from '../utils/soundEffects';
 import { FlagImage } from './FlagImage';
+import { CashSpellingFeedback } from './CashSpellingFeedback';
 
 interface RoundReviewProps {
   party: PartyDoc;
@@ -28,6 +29,14 @@ export const RoundReview: React.FC<RoundReviewProps> = ({
   const isEndOfRound = Boolean(party.isLocal && party.playerOrder && ((party.localTurnIndex || 0) + 1) % party.playerOrder.length === 0);
   const playersList: Player[] = Object.values(party.players || {});
   const isMultiplayer = playersList.length > 1;
+
+  const [showSpellingDetail, setShowSpellingDetail] = useState(false);
+  const hasCashSpellingError = Boolean(
+    roundAnswer?.mode === 'cash' &&
+    ((roundAnswer.levenshteinDistance !== undefined && roundAnswer.levenshteinDistance > 0) ||
+      roundAnswer.spellingAnalysis?.hasTypo ||
+      (roundAnswer.isCorrect && roundAnswer.scoreFactor < 1))
+  );
 
   const handleNext = () => {
     sounds.playClick();
@@ -87,13 +96,27 @@ export const RoundReview: React.FC<RoundReviewProps> = ({
               )}
             </div>
 
-            <div className="flex items-center gap-1.5 text-xs sm:text-sm">
-              <span className="text-white/50 text-[10px] sm:text-xs uppercase font-semibold">
-                Capitale :
-              </span>
-              <span className="text-[#FB923C] font-extrabold tracking-wide">
-                {question.capital}
-              </span>
+            <div className="flex items-center gap-2 text-xs sm:text-sm flex-wrap">
+              <div className="flex items-center gap-1.5">
+                <span className="text-white/50 text-[10px] sm:text-xs uppercase font-semibold">
+                  Capitale :
+                </span>
+                <span className="text-[#FB923C] font-extrabold tracking-wide">
+                  {question.capital}
+                </span>
+              </div>
+
+              {hasCashSpellingError && (
+                <button
+                  type="button"
+                  onClick={() => setShowSpellingDetail(!showSpellingDetail)}
+                  className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-black uppercase px-2 py-0.5 rounded-md bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition-all cursor-pointer shadow-sm"
+                  title="Voir les erreurs d'orthographe de votre réponse Cash"
+                >
+                  <SpellCheck className="w-3 h-3 text-amber-400" />
+                  <span>{showSpellingDetail ? 'Masquer erreurs' : 'Détail fautes Cash'}</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -129,6 +152,33 @@ export const RoundReview: React.FC<RoundReviewProps> = ({
           )}
         </div>
       </motion.div>
+
+      {/* Cash Spelling Feedback Expanded */}
+      <AnimatePresence>
+        {showSpellingDetail && hasCashSpellingError && roundAnswer && (
+          <motion.div
+            initial={{ opacity: 0, y: -6, height: 0 }}
+            animate={{ opacity: 1, y: 0, height: 'auto' }}
+            exit={{ opacity: 0, y: -6, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="w-full shrink-0 overflow-hidden"
+          >
+            <CashSpellingFeedback
+              userInput={roundAnswer.answer}
+              correctAnswer={question.capital}
+              analysis={roundAnswer.spellingAnalysis}
+              status={
+                roundAnswer.isCorrect
+                  ? roundAnswer.scoreFactor < 1
+                    ? 'minor_error'
+                    : 'correct'
+                  : 'wrong'
+              }
+              pointsEarned={roundAnswer.pointsEarned}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Multiplayer Answers Strip: In multiplayer, show who got it right or wrong with their answer and mode */}
       {isMultiplayer && (

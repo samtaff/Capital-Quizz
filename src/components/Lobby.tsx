@@ -18,6 +18,7 @@ import {
   updatePartySettings,
 } from '../services/gameService';
 import { sounds } from '../utils/soundEffects';
+import { RoundSliderSelector } from './RoundSliderSelector';
 
 interface LobbyProps {
   party: PartyDoc;
@@ -252,29 +253,16 @@ export const Lobby: React.FC<LobbyProps> = ({
               </div>
             </div>
 
-            {/* Rounds selection */}
-            <div>
-              <p className="text-xs uppercase tracking-widest text-white/60 mb-2 font-bold">
-                Nombre de manches
-              </p>
-              <div className="grid grid-cols-3 gap-2">
-                {[5, 10, 15].map((rounds) => {
-                  const isSelected = party.totalRounds === rounds;
-                  return (
-                    <button
-                      key={rounds}
-                      onClick={() => handleRoundsChange(rounds)}
-                      className={`text-xs font-black uppercase tracking-wider py-2.5 px-3 rounded-xl border transition-all text-center cursor-pointer ${
-                        isSelected
-                          ? 'bg-white text-[#1A1443] border-white shadow-md'
-                          : 'bg-[#1A1443]/60 text-white/80 border-white/10 hover:bg-white/10'
-                      }`}
-                    >
-                      {rounds} manches
-                    </button>
-                  );
-                })}
-              </div>
+            {/* Rounds selection with free slider */}
+            <div className="sm:col-span-2">
+              <RoundSliderSelector
+                value={party.totalRounds}
+                onChange={handleRoundsChange}
+                label="Nombre de manches (questions)"
+                min={1}
+                max={30}
+                quickPresets={[3, 5, 10, 15, 20]}
+              />
             </div>
 
             {/* Time limit per question */}

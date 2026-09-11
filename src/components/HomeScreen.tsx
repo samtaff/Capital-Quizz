@@ -25,6 +25,7 @@ import {
   LocalPlayerInput,
 } from '../services/gameService';
 import { sounds } from '../utils/soundEffects';
+import { RoundSliderSelector } from './RoundSliderSelector';
 
 interface HomeScreenProps {
   onPartyEntered: (code: string, playerId: string) => void;
@@ -466,31 +467,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               </div>
             </div>
 
-            {/* Rounds count */}
-            <div>
-              <p className="text-xs uppercase tracking-widest text-white/60 mb-2 font-bold">
-                Nombre de questions
-              </p>
-              <div className="grid grid-cols-3 gap-2">
-                {[5, 10, 15].map((rounds) => (
-                  <button
-                    key={rounds}
-                    type="button"
-                    onClick={() => {
-                      sounds.playClick();
-                      setCreateRounds(rounds);
-                    }}
-                    className={`py-2 text-xs font-black uppercase tracking-wider rounded-xl border transition-all cursor-pointer ${
-                      createRounds === rounds
-                        ? 'bg-white text-[#1A1443] border-white shadow-md'
-                        : 'bg-[#1A1443]/60 text-white/80 border-white/10 hover:bg-white/10'
-                    }`}
-                  >
-                    {rounds} manches
-                  </button>
-                ))}
-              </div>
-            </div>
+            {/* Rounds count slider selector */}
+            <RoundSliderSelector
+              value={createRounds}
+              onChange={setCreateRounds}
+              label="Nombre de manches"
+              min={1}
+              max={30}
+              quickPresets={[3, 5, 10, 15, 20]}
+            />
 
             {/* Time limit per question */}
             <div>
@@ -692,36 +677,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               </div>
             </div>
 
-            {/* Rounds count */}
-            <div>
-              <p className="text-xs uppercase tracking-widest text-white/60 mb-2 font-bold">
-                Nombre de manches par joueur
-              </p>
-              <div className="grid grid-cols-3 gap-2">
-                {[3, 5, 10].map((rounds) => (
-                  <button
-                    key={rounds}
-                    type="button"
-                    onClick={() => {
-                      sounds.playClick();
-                      setLocalRounds(rounds);
-                    }}
-                    className={`py-2 text-xs font-black uppercase tracking-wider rounded-xl border transition-all cursor-pointer ${
-                      localRounds === rounds
-                        ? 'bg-white text-[#1A1443] border-white shadow-md'
-                        : 'bg-[#1A1443]/60 text-white/80 border-white/10 hover:bg-white/10'
-                    }`}
-                  >
-                    {rounds} manches
-                  </button>
-                ))}
-              </div>
-              <p className="text-[11px] text-white/60 mt-2 text-center font-medium">
-                {localPlayers.length > 1
-                  ? `${localPlayers.length} joueurs × ${localRounds} manches = ${localPlayers.length * localRounds} questions au total (chacun son tour)`
-                  : `Mode Solo : ${localRounds} questions d'entraînement`}
-              </p>
-            </div>
+            {/* Rounds count slider selector */}
+            <RoundSliderSelector
+              value={localRounds}
+              onChange={setLocalRounds}
+              label="Nombre de manches par joueur"
+              playersCount={localPlayers.length}
+              min={1}
+              max={25}
+              quickPresets={[3, 5, 10, 15, 20]}
+            />
 
             {/* Time limit per player */}
             <div>

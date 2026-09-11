@@ -22,11 +22,13 @@ import {
   Player,
   PlayerRoundAnswer,
   ResponseMode,
+  SpellingAnalysis,
 } from '../types';
 import {
   calculateRoundScore,
   evaluateCashAnswer,
 } from '../utils/levenshtein';
+import { CashSpellingFeedback } from './CashSpellingFeedback';
 import {
   setPlayerMode,
   showRoundMap,
@@ -91,6 +93,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
     message: string;
     points: number;
     distance?: number;
+    spellingAnalysis?: SpellingAnalysis;
   }>({ status: null, message: '', points: 0 });
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -263,6 +266,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
       scoreFactor: evaluation.pointsPercentage / 100,
       pointsEarned: earnedPoints,
       levenshteinDistance: evaluation.distance,
+      spellingAnalysis: evaluation.spellingAnalysis,
       punchline,
       answeredAt: Date.now(),
       timeTaken: 0,
@@ -274,6 +278,8 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
         status: 'correct',
         message: punchline,
         points: earnedPoints,
+        distance: 0,
+        spellingAnalysis: evaluation.spellingAnalysis,
       });
     } else if (evaluation.distance <= 2) {
       sounds.playMinorError();
@@ -282,6 +288,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
         message: punchline,
         points: earnedPoints,
         distance: evaluation.distance,
+        spellingAnalysis: evaluation.spellingAnalysis,
       });
     } else {
       sounds.playWrong();
@@ -290,6 +297,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
         message: punchline,
         points: 0,
         distance: evaluation.distance,
+        spellingAnalysis: evaluation.spellingAnalysis,
       });
     }
 
@@ -663,45 +671,41 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
 
               {/* If Cash: show text field and user input */}
               {effectiveMode === 'cash' && (
-                <div className="w-full">
-                  <div
-                    className={`w-full rounded-xl px-3.5 py-2 border-2 flex items-center justify-between text-xs sm:text-sm font-black uppercase shadow-lg ${
-                      isCorrect
-                        ? 'bg-emerald-950/80 border-emerald-400 ring-4 ring-emerald-400/60 text-emerald-200 animate-pulse'
-                        : 'bg-rose-950/80 border-rose-400 ring-4 ring-rose-400/40 text-rose-200'
-                    }`}
-                  >
-                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                      <span className="text-white/60 text-[11px] font-bold uppercase shrink-0">Votre réponse :</span>
-                      <span className={`font-black truncate ${!isCorrect ? 'line-through text-rose-200' : 'text-emerald-200'}`}>
-                        {answeredCity || cashInput || 'Saisie validée'}
+                <div className="w-full flex flex-col gap-2">
+                  {/* Exact answer without typo */}
+                  {status === 'correct' && (
+                    <div className="w-full rounded-xl px-3.5 py-2.5 border-2 flex items-center justify-between text-xs sm:text-sm font-black uppercase shadow-lg bg-emerald-950/80 border-emerald-400 ring-4 ring-emerald-400/60 text-emerald-200 animate-pulse">
+                      <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                        <span className="text-white/60 text-[11px] font-bold uppercase shrink-0">Votre réponse :</span>
+                        <span className="font-black truncate text-emerald-200">
+                          {answeredCity || cashInput || 'Saisie validée'}
+                        </span>
+                      </div>
+                      <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md border shrink-0 ml-2 font-bold bg-emerald-500/20 text-emerald-300 border-emerald-500/30">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                        +{points} pts
                       </span>
                     </div>
-                    <span
-                      className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md border shrink-0 ml-2 font-bold ${
-                        isCorrect
-                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-                          : 'bg-rose-500/20 text-rose-300 border-rose-500/30'
-                      }`}
-                    >
-                      {isCorrect ? (
-                        <>
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                          +{points} pts
-                        </>
-                      ) : (
-                        <>
-                          <XCircle className="w-3.5 h-3.5 text-rose-400" />
-                          0 pt
-                        </>
-                      )}
-                    </span>
-                  </div>
+                  )}
+
+                  {/* Typo detected in Cash mode (minor error with tolerance or rejected) */}
+                  {(status === 'minor_error' || status === 'wrong') && (
+                    <CashSpellingFeedback
+                      userInput={answeredCity || cashInput}
+                      correctAnswer={question.capital}
+                      analysis={
+                        (isDesignatedPlayer ? localFeedback.spellingAnalysis : currentAns?.spellingAnalysis) ||
+                        undefined
+                      }
+                      status={status}
+                      pointsEarned={points}
+                    />
+                  )}
                 </div>
               )}
 
-              {/* Explicit banner for the correct answer when player made a mistake (works for BOTH Carré & Cash) */}
-              {!isCorrect && (
+              {/* Explicit banner for the correct answer when player made a mistake in Carré mode */}
+              {!isCorrect && effectiveMode === 'carre' && (
                 <div className="w-full bg-emerald-950/95 border-2 border-emerald-400 rounded-xl sm:rounded-2xl px-3 sm:px-4 py-2 flex items-center justify-between text-xs sm:text-sm shadow-xl">
                   <div className="flex items-center gap-1.5 sm:gap-2">
                     <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400 shrink-0" />

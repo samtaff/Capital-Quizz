@@ -56,6 +56,24 @@ export interface CountryItem {
   acceptableAnswers?: string[]; // Variantes acceptables
 }
 
+export interface SpellingCharDiff {
+  char: string;
+  type: 'correct' | 'wrong' | 'extra' | 'missing' | 'corrected';
+}
+
+export interface SpellingAnalysis {
+  hasTypo: boolean;
+  userInput: string;
+  correctAnswer: string;
+  distance: number;
+  inputChars: SpellingCharDiff[];
+  targetChars: SpellingCharDiff[];
+  missingChars: string[];
+  extraChars: string[];
+  substitutedChars: Array<{ from: string; to: string }>;
+  summaryMessage: string;
+}
+
 export interface PlayerRoundAnswer {
   mode: ResponseMode;
   answer: string;
@@ -63,6 +81,7 @@ export interface PlayerRoundAnswer {
   scoreFactor: number; // 1.0 (exact cash), 0.5 (faute cash ou carre), 0 (rate)
   pointsEarned: number;
   levenshteinDistance?: number;
+  spellingAnalysis?: SpellingAnalysis;
   punchline?: string;
   answeredAt: number; // timestamp
   timeTaken: number; // in seconds
@@ -122,4 +141,5 @@ export interface LevenshteinEvaluation {
   normalizedTarget: string;
   normalizedInput: string;
   note: 'exact' | 'minor_error' | 'incorrect';
+  spellingAnalysis?: SpellingAnalysis;
 }

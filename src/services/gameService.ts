@@ -18,6 +18,7 @@ import {
   WheelSector,
 } from '../types';
 import { generateQuestions, getQuestionForContinent } from '../data/countries';
+import { DIFFICULTY_BASE_POINTS, getRankMultiplier } from '../utils/levenshtein';
 
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // Sans 'I' et 'O' pour éviter toute confusion
 
@@ -94,7 +95,7 @@ export function createLocalParty(
   const playersCount = Math.max(1, playersInput.length);
   // Questions nécessaires : totalRounds manches * nombre de joueurs
   const totalQuestionsNeeded = totalRounds * playersCount;
-  const questions = generateQuestions(difficultySetting, totalQuestionsNeeded);
+  const questions = generateQuestions(difficultySetting, totalQuestionsNeeded, gameMode);
 
   const playersRecord: Record<string, Player> = {};
   const playerOrder: string[] = [];
@@ -111,6 +112,7 @@ export function createLocalParty(
       lastRoundDelta: 0,
       currentAnswer: null,
       selectedMode: null,
+      wheelTurnsCount: 0,
       joinedAt: Date.now(),
     };
   });
@@ -170,7 +172,7 @@ export async function createParty(
   const hostId = await ensureAnonymousAuth();
   const code = generatePartyCode();
 
-  const questions = generateQuestions(difficultySetting, totalRounds);
+  const questions = generateQuestions(difficultySetting, totalRounds, gameMode);
 
   const hostPlayer: Player = {
     id: hostId,
@@ -181,6 +183,7 @@ export async function createParty(
     lastRoundDelta: 0,
     currentAnswer: null,
     selectedMode: null,
+    wheelTurnsCount: 0,
     joinedAt: Date.now(),
   };
 
@@ -249,6 +252,7 @@ export async function joinParty(
     lastRoundDelta: 0,
     currentAnswer: null,
     selectedMode: null,
+    wheelTurnsCount: 0,
     joinedAt: Date.now(),
   };
 
@@ -270,7 +274,7 @@ export async function updatePartySettings(
   gameMode?: GameMode
 ): Promise<void> {
   const partyRef = doc(db, 'parties', code);
-  const questions = generateQuestions(difficultySetting, totalRounds);
+  const questions = generateQuestions(difficultySetting, totalRounds, gameMode);
 
   const updates: Record<string, any> = {
     difficultySetting,
@@ -303,6 +307,7 @@ export async function startPartyGame(code: string): Promise<void> {
     resetPlayers[`players.${pId}.lastRoundDelta`] = 0;
     resetPlayers[`players.${pId}.currentAnswer`] = null;
     resetPlayers[`players.${pId}.selectedMode`] = null;
+    resetPlayers[`players.${pId}.wheelTurnsCount`] = 0;
   });
 
   const nextStatus: GameStatus = party.gameMode === 'wheel' ? 'wheel' : 'question';
@@ -310,9 +315,10 @@ export async function startPartyGame(code: string): Promise<void> {
   await updateDoc(partyRef, {
     status: nextStatus,
     currentRoundIndex: 0,
-    roundStartTime: Date.now(),
+    roundStartTime: nextStatus === 'question' ? Date.now() : 0,
     roundDuration: party.roundDuration !== undefined ? party.roundDuration : 20,
     activeWheelSector: null,
+    activePlayerId: null,
     wheelState: null,
     ...resetPlayers,
   });
@@ -372,6 +378,10 @@ export async function applyWheelPlayerAndStartQuestion(
   if (code === 'LOCAL' || code.startsWith('LOCAL')) {
     if (!activeLocalParty) return;
     activeLocalParty.activePlayerId = targetPlayerId;
+    if (activeLocalParty.players?.[targetPlayerId]) {
+      activeLocalParty.players[targetPlayerId].wheelTurnsCount =
+        (activeLocalParty.players[targetPlayerId].wheelTurnsCount || 0) + 1;
+    }
     activeLocalParty.status = 'question';
     activeLocalParty.roundStartTime = Date.now();
     activeLocalParty.wheelState = null;
@@ -381,8 +391,14 @@ export async function applyWheelPlayerAndStartQuestion(
   }
 
   const partyRef = doc(db, 'parties', code);
+  const snap = await getDoc(partyRef);
+  if (!snap.exists()) return;
+  const party = snap.data() as PartyDoc;
+  const currentTurns = party.players?.[targetPlayerId]?.wheelTurnsCount || 0;
+
   await updateDoc(partyRef, {
     activePlayerId: targetPlayerId,
+    [`players.${targetPlayerId}.wheelTurnsCount`]: currentTurns + 1,
     status: 'question',
     roundStartTime: Date.now(),
     wheelState: null,
@@ -490,12 +506,41 @@ export async function submitPlayerAnswer(
 
   const party = snap.data() as PartyDoc;
   const currentTotal = party.players?.[playerId]?.totalScore || 0;
-  const sanitizedAnswer = sanitizeFirestoreObject(answer);
+  const finalAnswer = { ...answer };
+
+  // Mode Top Chrono : déterminer le rang exact parmi les bonnes réponses déjà enregistrées
+  if (party.gameMode === 'chrono' && answer.isCorrect) {
+    const otherCorrectCount = Object.values(party.players || {}).filter(
+      (p) => p.id !== playerId && p.currentAnswer && p.currentAnswer.isCorrect
+    ).length;
+    const officialRank = otherCorrectCount + 1;
+    finalAnswer.speedRank = officialRank;
+
+    const question = party.questions[party.currentRoundIndex];
+    if (question) {
+      const modeMultiplier = answer.mode === 'cash' ? (answer.scoreFactor || 1.0) : 0.5;
+      const basePoints = DIFFICULTY_BASE_POINTS[question.difficulty];
+      const maxAvailable = Math.round(basePoints * modeMultiplier);
+      const rankMult = getRankMultiplier(officialRank);
+      let calculatedPoints = Math.round(maxAvailable * rankMult);
+
+      if (party.activeWheelSector?.id === 'double_points') {
+        calculatedPoints = Math.round(calculatedPoints * 2);
+      } else if (party.activeWheelSector?.id === 'cash_boost' && answer.mode === 'cash') {
+        calculatedPoints += 500;
+      }
+
+      finalAnswer.pointsEarned = calculatedPoints;
+      finalAnswer.speedBonus = calculatedPoints - maxAvailable;
+    }
+  }
+
+  const sanitizedAnswer = sanitizeFirestoreObject(finalAnswer);
 
   await updateDoc(partyRef, {
     [`players.${playerId}.currentAnswer`]: sanitizedAnswer,
-    [`players.${playerId}.totalScore`]: currentTotal + answer.pointsEarned,
-    [`players.${playerId}.lastRoundDelta`]: answer.pointsEarned,
+    [`players.${playerId}.totalScore`]: currentTotal + finalAnswer.pointsEarned,
+    [`players.${playerId}.lastRoundDelta`]: finalAnswer.pointsEarned,
   });
 }
 
@@ -587,11 +632,12 @@ export async function nextRoundOrEnd(code: string): Promise<void> {
       activeLocalParty.localTurnIndex = nextTurn;
       activeLocalParty.currentRoundIndex = nextTurn;
       activeLocalParty.activePlayerId = nextPlayerId;
-      activeLocalParty.status = activeLocalParty.gameMode === 'wheel' ? 'wheel' : 'question';
+      const nextStatusLocal: GameStatus = activeLocalParty.gameMode === 'wheel' ? 'wheel' : 'question';
+      activeLocalParty.status = nextStatusLocal;
       activeLocalParty.activeWheelSector = null;
       activeLocalParty.wheelState = null;
-      activeLocalParty.waitingForNextPlayer = playersCount > 1;
-      activeLocalParty.roundStartTime = Date.now();
+      activeLocalParty.waitingForNextPlayer = nextStatusLocal === 'wheel' ? false : (playersCount > 1);
+      activeLocalParty.roundStartTime = nextStatusLocal === 'question' ? Date.now() : 0;
       // Réinitialiser les réponses courantes de tous les joueurs pour la nouvelle manche
       Object.keys(activeLocalParty.players || {}).forEach((pId) => {
         activeLocalParty!.players[pId].currentAnswer = null;
@@ -615,11 +661,12 @@ export async function nextRoundOrEnd(code: string): Promise<void> {
       activeLocalParty.localTurnIndex = nextTurn;
       activeLocalParty.currentRoundIndex = nextTurn;
       activeLocalParty.activePlayerId = nextPlayerId;
-      activeLocalParty.status = activeLocalParty.gameMode === 'wheel' ? 'wheel' : 'question';
+      const nextStatusLocal: GameStatus = activeLocalParty.gameMode === 'wheel' ? 'wheel' : 'question';
+      activeLocalParty.status = nextStatusLocal;
       activeLocalParty.activeWheelSector = null;
       activeLocalParty.wheelState = null;
-      activeLocalParty.waitingForNextPlayer = playersCount > 1;
-      activeLocalParty.roundStartTime = Date.now();
+      activeLocalParty.waitingForNextPlayer = nextStatusLocal === 'wheel' ? false : (playersCount > 1);
+      activeLocalParty.roundStartTime = nextStatusLocal === 'question' ? Date.now() : 0;
       if (activeLocalParty.players[nextPlayerId]) {
         activeLocalParty.players[nextPlayerId].currentAnswer = null;
         activeLocalParty.players[nextPlayerId].selectedMode = null;
@@ -654,9 +701,10 @@ export async function nextRoundOrEnd(code: string): Promise<void> {
     await updateDoc(partyRef, {
       status: nextStatus,
       currentRoundIndex: nextRoundIndex,
-      roundStartTime: Date.now(),
+      roundStartTime: nextStatus === 'question' ? Date.now() : 0,
       roundDuration: party.roundDuration !== undefined ? party.roundDuration : 20,
       activeWheelSector: null,
+      activePlayerId: null,
       wheelState: null,
       ...resetPlayers,
     });
@@ -673,7 +721,8 @@ export async function restartParty(code: string): Promise<void> {
     const playersCount = Math.max(1, playerOrder.length);
     const questions = generateQuestions(
       activeLocalParty.difficultySetting,
-      activeLocalParty.totalRounds * playersCount
+      activeLocalParty.totalRounds * playersCount,
+      activeLocalParty.gameMode
     );
 
     Object.keys(activeLocalParty.players || {}).forEach((pId) => {
@@ -681,15 +730,17 @@ export async function restartParty(code: string): Promise<void> {
       activeLocalParty!.players[pId].lastRoundDelta = 0;
       activeLocalParty!.players[pId].currentAnswer = null;
       activeLocalParty!.players[pId].selectedMode = null;
+      activeLocalParty!.players[pId].wheelTurnsCount = 0;
     });
 
-    activeLocalParty.status = 'question';
+    const initialStatus: GameStatus = activeLocalParty.gameMode === 'wheel' ? 'wheel' : 'question';
+    activeLocalParty.status = initialStatus;
     activeLocalParty.localTurnIndex = 0;
     activeLocalParty.currentRoundIndex = 0;
     activeLocalParty.questions = questions;
     activeLocalParty.activePlayerId = playerOrder[0];
-    activeLocalParty.waitingForNextPlayer = playersCount > 1;
-    activeLocalParty.roundStartTime = Date.now();
+    activeLocalParty.waitingForNextPlayer = initialStatus === 'wheel' ? false : (playersCount > 1);
+    activeLocalParty.roundStartTime = initialStatus === 'question' ? Date.now() : 0;
     notifyLocalSubscribers();
     return;
   }
@@ -699,7 +750,7 @@ export async function restartParty(code: string): Promise<void> {
   if (!snap.exists()) return;
 
   const party = snap.data() as PartyDoc;
-  const questions = generateQuestions(party.difficultySetting, party.totalRounds);
+  const questions = generateQuestions(party.difficultySetting, party.totalRounds, party.gameMode);
 
   const resetPlayers: Record<string, any> = {};
   Object.keys(party.players || {}).forEach((pId) => {
@@ -707,12 +758,14 @@ export async function restartParty(code: string): Promise<void> {
     resetPlayers[`players.${pId}.lastRoundDelta`] = 0;
     resetPlayers[`players.${pId}.currentAnswer`] = null;
     resetPlayers[`players.${pId}.selectedMode`] = null;
+    resetPlayers[`players.${pId}.wheelTurnsCount`] = 0;
   });
 
   await updateDoc(partyRef, {
     status: 'lobby',
     currentRoundIndex: 0,
     roundStartTime: 0,
+    activePlayerId: null,
     questions,
     ...resetPlayers,
   });

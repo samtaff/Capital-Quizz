@@ -44,6 +44,15 @@ import {
   getRandomSuccessPunchline,
   getRandomFailurePunchline,
 } from '../utils/humorMessages';
+import { COUNTRY_CONTINENTS } from '../data/wheelData';
+
+const CONTINENT_LABELS: Record<string, string> = {
+  europe: 'Europe 🇪🇺',
+  afrique: 'Afrique 🌍',
+  asie: 'Asie 🌏',
+  ameriques: 'Amériques 🌎',
+  oceanie: 'Océanie 🏝️',
+};
 
 interface QuestionCardProps {
   party: PartyDoc;
@@ -79,6 +88,13 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
     : !hasDesignatedPlayer || interrogatedPlayerId === currentPlayerId;
   const designatedPlayer = hasDesignatedPlayer ? party.players?.[interrogatedPlayerId!] : null;
 
+  // Mode Devine le drapeau vs Capitales
+  const isFlagMode = party.gameMode === 'flag' || question.questionType === 'flag';
+  const targetAnswer = isFlagMode ? question.country : question.capital;
+  const acceptableAnswers = isFlagMode
+    ? (question.acceptableCountryAnswers || [question.country])
+    : (question.acceptableAnswers || [question.capital]);
+
   // Local states
   const [selectedMode, setSelectedMode] = useState<ResponseMode | null>(
     currentPlayer?.selectedMode || null
@@ -94,6 +110,8 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
     status: 'correct' | 'minor_error' | 'wrong' | null;
     message: string;
     points: number;
+    speedBonus?: number;
+    speedRank?: number;
     distance?: number;
     spellingAnalysis?: SpellingAnalysis;
   }>({ status: null, message: '', points: 0 });
@@ -103,6 +121,8 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   const isUnlimited = party.roundDuration === 0;
   const roundDuration = party.roundDuration !== undefined ? party.roundDuration : 20;
 
+  const mountTimeRef = useRef<number>(Date.now());
+
   const [timeLeft, setTimeLeft] = useState<number>(() => {
     if (isUnlimited) return 999;
     const elapsed = (Date.now() - (party.roundStartTime || Date.now())) / 1000;
@@ -111,6 +131,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
 
   // Sync / Reset on new question round
   useEffect(() => {
+    mountTimeRef.current = Date.now();
     setSelectedMode(currentPlayer?.selectedMode || null);
     setCashInput('');
     setHasSubmittedLocally(false);
@@ -161,6 +182,8 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
 
   const handleTimeout = async () => {
     if (alreadyAnswered || hasSubmittedLocally) return;
+    // Safeguard: Do not trigger timeout if question was mounted less than 1500ms ago (prevents clock desync glitches)
+    if (Date.now() - mountTimeRef.current < 1500) return;
     setHasSubmittedLocally(true);
     sounds.playWrong();
     setFlashColor('red');
@@ -205,10 +228,10 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   const disabledCarreOptions = React.useMemo(() => {
     if (!isJokerFifty) return new Set<string>();
     const wrong = question.options.filter(
-      (o) => o.toLowerCase().trim() !== question.capital.toLowerCase().trim()
+      (o) => o.toLowerCase().trim() !== targetAnswer.toLowerCase().trim()
     );
     return new Set(wrong.slice(0, 2));
-  }, [isJokerFifty, question]);
+  }, [isJokerFifty, question, targetAnswer]);
 
   // Mode selection
   const handleSelectMode = async (mode: ResponseMode) => {
@@ -234,20 +257,45 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
     const answerText = cashInput.trim();
     setSubmittedAnswerText(answerText);
 
+    const startTime = party.roundStartTime && party.roundStartTime > 0
+      ? party.roundStartTime
+      : mountTimeRef.current;
+    const timeTaken = Math.max(0.1, Number(((Date.now() - startTime) / 1000).toFixed(1)));
+
     const evaluation = evaluateCashAnswer(
       answerText,
-      question.capital,
-      question.acceptableAnswers
+      targetAnswer,
+      acceptableAnswers
     );
+
+    const isCorrect = evaluation.isAccepted;
+
+    // Calcul du rang en mode Top Chrono (1er 100%, 2e 70%, 3e 50%, 4e 35%...)
+    let estimatedRank = 1;
+    if (party.gameMode === 'chrono' && isCorrect) {
+      if (party.isLocal) {
+        if (timeTaken <= 3.0) estimatedRank = 1;
+        else if (timeTaken <= 6.0) estimatedRank = 2;
+        else if (timeTaken <= 10.0) estimatedRank = 3;
+        else estimatedRank = 4;
+      } else {
+        const otherPlayers = (Object.values(party.players || {}) as Player[]).filter((p) => p.id !== currentPlayerId);
+        const priorCorrect = otherPlayers.filter((p) => p.currentAnswer && p.currentAnswer.isCorrect).length;
+        estimatedRank = priorCorrect + 1;
+      }
+    }
 
     const scoreResult = calculateRoundScore(
       question.difficulty,
       'cash',
-      evaluation.isAccepted,
-      evaluation.pointsPercentage
+      isCorrect,
+      evaluation.pointsPercentage,
+      timeTaken,
+      party.roundDuration ?? 20,
+      party.gameMode ?? 'classic',
+      estimatedRank
     );
 
-    const isCorrect = evaluation.isAccepted;
     const punchline = isCorrect
       ? getRandomSuccessPunchline()
       : getRandomFailurePunchline();
@@ -268,11 +316,13 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
       isCorrect,
       scoreFactor: evaluation.pointsPercentage / 100,
       pointsEarned: earnedPoints,
+      speedBonus: scoreResult.speedBonus,
+      speedRank: scoreResult.rank,
       levenshteinDistance: evaluation.distance,
       spellingAnalysis: evaluation.spellingAnalysis,
       punchline,
       answeredAt: Date.now(),
-      timeTaken: 0,
+      timeTaken,
     };
 
     if (evaluation.distance === 0) {
@@ -281,6 +331,8 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
         status: 'correct',
         message: punchline,
         points: earnedPoints,
+        speedBonus: scoreResult.speedBonus,
+        speedRank: scoreResult.rank,
         distance: 0,
         spellingAnalysis: evaluation.spellingAnalysis,
       });
@@ -290,6 +342,8 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
         status: 'minor_error',
         message: punchline,
         points: earnedPoints,
+        speedBonus: scoreResult.speedBonus,
+        speedRank: scoreResult.rank,
         distance: evaluation.distance,
         spellingAnalysis: evaluation.spellingAnalysis,
       });
@@ -299,6 +353,8 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
         status: 'wrong',
         message: punchline,
         points: 0,
+        speedBonus: 0,
+        speedRank: 0,
         distance: evaluation.distance,
         spellingAnalysis: evaluation.spellingAnalysis,
       });
@@ -315,14 +371,38 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
     setSelectedCarreOption(chosenCity);
     setSubmittedAnswerText(chosenCity);
 
+    const startTime = party.roundStartTime && party.roundStartTime > 0
+      ? party.roundStartTime
+      : mountTimeRef.current;
+    const timeTaken = Math.max(0.1, Number(((Date.now() - startTime) / 1000).toFixed(1)));
+
     const isCorrect =
-      chosenCity.toLowerCase().trim() === question.capital.toLowerCase().trim();
+      chosenCity.toLowerCase().trim() === targetAnswer.toLowerCase().trim();
+
+    // Calcul du rang en mode Top Chrono (1er 100%, 2e 70%, 3e 50%, 4e 35%...)
+    let estimatedRank = 1;
+    if (party.gameMode === 'chrono' && isCorrect) {
+      if (party.isLocal) {
+        if (timeTaken <= 3.0) estimatedRank = 1;
+        else if (timeTaken <= 6.0) estimatedRank = 2;
+        else if (timeTaken <= 10.0) estimatedRank = 3;
+        else estimatedRank = 4;
+      } else {
+        const otherPlayers = (Object.values(party.players || {}) as Player[]).filter((p) => p.id !== currentPlayerId);
+        const priorCorrect = otherPlayers.filter((p) => p.currentAnswer && p.currentAnswer.isCorrect).length;
+        estimatedRank = priorCorrect + 1;
+      }
+    }
 
     const scoreResult = calculateRoundScore(
       question.difficulty,
       'carre',
       isCorrect,
-      isCorrect ? 50 : 0
+      isCorrect ? 50 : 0,
+      timeTaken,
+      party.roundDuration ?? 20,
+      party.gameMode ?? 'classic',
+      estimatedRank
     );
 
     const punchline = isCorrect
@@ -343,9 +423,11 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
       isCorrect,
       scoreFactor: isCorrect ? 0.5 : 0,
       pointsEarned: earnedPoints,
+      speedBonus: scoreResult.speedBonus,
+      speedRank: scoreResult.rank,
       punchline,
       answeredAt: Date.now(),
-      timeTaken: 0,
+      timeTaken,
     };
 
     if (isCorrect) {
@@ -354,6 +436,8 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
         status: 'correct',
         message: punchline,
         points: earnedPoints,
+        speedBonus: scoreResult.speedBonus,
+        speedRank: scoreResult.rank,
       });
     } else {
       sounds.playWrong();
@@ -361,6 +445,8 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
         status: 'wrong',
         message: punchline,
         points: 0,
+        speedBonus: 0,
+        speedRank: 0,
       });
     }
 
@@ -376,18 +462,33 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
     ? Boolean(designatedPlayer?.currentAnswer)
     : answeredCount >= totalPlayers;
 
+  const [isAdvancing, setIsAdvancing] = useState(false);
+
+  useEffect(() => {
+    setIsAdvancing(false);
+  }, [party.currentRoundIndex, party.status]);
+
   // Host auto-submits timeout for any non-responsive online player once timer is fully expired
   useEffect(() => {
     if (!isHost || isUnlimited || party.isLocal || party.status !== 'question') return;
 
     const checkTimeouts = () => {
-      const elapsed = (Date.now() - (party.roundStartTime || Date.now())) / 1000;
+      // Must have valid roundStartTime and at least 2 seconds elapsed since question mount
+      if (!party.roundStartTime || Date.now() - mountTimeRef.current < 2000) return;
+      const elapsed = (Date.now() - party.roundStartTime) / 1000;
       if (elapsed >= roundDuration) {
-        playersList.forEach((p) => {
-          if (!p.currentAnswer) {
-            submitTimeoutAnswer(party.code, p.id);
+        if (isWheelMode && interrogatedPlayerId) {
+          const desPlayer = party.players?.[interrogatedPlayerId];
+          if (desPlayer && !desPlayer.currentAnswer) {
+            submitTimeoutAnswer(party.code, interrogatedPlayerId);
           }
-        });
+        } else {
+          playersList.forEach((p) => {
+            if (!p.currentAnswer) {
+              submitTimeoutAnswer(party.code, p.id);
+            }
+          });
+        }
       }
     };
 
@@ -402,16 +503,22 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
     roundDuration,
     playersList,
     party.code,
+    isWheelMode,
+    interrogatedPlayerId,
   ]);
 
   const handleAdvanceToMap = async () => {
+    if (isAdvancing) return;
     if (isOnlineMultiplayer && (!isHost || !allPlayersAnswered)) return;
+    setIsAdvancing(true);
     sounds.playClick();
     await showRoundMap(party.code);
   };
 
   const handleSkipMap = async () => {
+    if (isAdvancing) return;
     if (isOnlineMultiplayer && (!isHost || !allPlayersAnswered)) return;
+    setIsAdvancing(true);
     sounds.playClick();
     await nextRoundOrEnd(party.code);
   };
@@ -608,6 +715,37 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
               </motion.div>
             )}
 
+            {party.gameMode === 'chrono' && (
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className={`inline-flex items-center gap-1 rounded-full font-black uppercase tracking-wider text-[#1A1443] shadow-md border border-amber-300 bg-gradient-to-r from-amber-300 via-amber-400 to-amber-300 ${
+                  isAnsweredState ? 'px-2 py-0.5 text-[9px]' : 'px-3 py-0.5 text-[10px] sm:text-xs'
+                }`}
+              >
+                <span className={isAnsweredState ? 'text-xs' : 'text-sm'}>⏱️</span>
+                <span>Top Chrono</span>
+                {!isAnsweredState && (
+                  <span className="text-[10px] opacity-80 hidden sm:inline">
+                    • Bonus rapidité
+                  </span>
+                )}
+              </motion.div>
+            )}
+
+            {isFlagMode && (
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className={`inline-flex items-center gap-1 rounded-full font-black uppercase tracking-wider text-white shadow-md border border-rose-300 bg-gradient-to-r from-rose-500 via-red-500 to-amber-500 ${
+                  isAnsweredState ? 'px-2 py-0.5 text-[9px]' : 'px-3 py-0.5 text-[10px] sm:text-xs'
+                }`}
+              >
+                <span className={isAnsweredState ? 'text-xs' : 'text-sm'}>🚩</span>
+                <span>Devine le drapeau</span>
+              </motion.div>
+            )}
+
             {/* Difficulty Badge */}
             <div
               className={`rounded-full font-black uppercase tracking-wider shadow-sm text-[#1A1443] ${
@@ -621,16 +759,42 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
             </div>
           </div>
 
-          {/* Country Name */}
-          <h1
-            className={`font-black uppercase tracking-tight leading-tight text-white drop-shadow-md px-2 max-w-full break-words transition-all duration-300 ${
-              isAnsweredState
-                ? 'text-base xs:text-lg sm:text-2xl md:text-3xl mb-0.5'
-                : 'text-2xl sm:text-4xl md:text-5xl mb-1'
-            }`}
-          >
-            {question.country}
-          </h1>
+          {/* Country Name / Flag Question */}
+          {isFlagMode ? (
+            <div className="flex flex-col items-center mb-1 text-center w-full">
+              <h1
+                className={`font-black uppercase tracking-tight leading-tight text-white drop-shadow-md px-2 max-w-full break-words transition-all duration-300 ${
+                  isAnsweredState
+                    ? 'text-base xs:text-lg sm:text-2xl md:text-3xl mb-0.5 text-emerald-300'
+                    : 'text-xl sm:text-3xl md:text-4xl mb-1'
+                }`}
+              >
+                {isAnsweredState ? (
+                  <span className="inline-flex items-center justify-center gap-2">
+                    <span>{question.flag}</span>
+                    <span>{question.country}</span>
+                  </span>
+                ) : (
+                  'À quel pays appartient ce drapeau ?'
+                )}
+              </h1>
+              {!isAnsweredState && COUNTRY_CONTINENTS[question.countryId] && (
+                <span className="text-[10px] sm:text-xs text-white/80 font-bold bg-white/15 px-2.5 py-0.5 rounded-full border border-white/20 mt-0.5 shadow-sm">
+                  📍 Continent : {CONTINENT_LABELS[COUNTRY_CONTINENTS[question.countryId]] || 'Monde'}
+                </span>
+              )}
+            </div>
+          ) : (
+            <h1
+              className={`font-black uppercase tracking-tight leading-tight text-white drop-shadow-md px-2 max-w-full break-words transition-all duration-300 ${
+                isAnsweredState
+                  ? 'text-base xs:text-lg sm:text-2xl md:text-3xl mb-0.5'
+                  : 'text-2xl sm:text-4xl md:text-5xl mb-1'
+              }`}
+            >
+              {question.country}
+            </h1>
+          )}
 
           {/* Flag Showcase with real FlagImage component - shrinks adaptively so everything fits on S22/mobile */}
           <div
@@ -639,6 +803,8 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                 ? 'w-20 h-13 xs:w-24 xs:h-15 sm:w-32 sm:h-20 md:w-40 md:h-26 rounded-xl border-2 border-white/30 ring-2 ring-white/10 my-0.5 sm:my-1'
                 : isTypingCash
                 ? 'w-28 h-18 xs:w-32 xs:h-20 sm:w-44 sm:h-28 md:w-56 md:h-36 rounded-xl sm:rounded-2xl border-2 sm:border-3 border-white/25 ring-3 ring-white/10 my-1 sm:my-1.5'
+                : isFlagMode
+                ? 'w-44 h-28 xs:w-52 xs:h-32 sm:w-68 sm:h-44 md:w-80 md:h-52 rounded-2xl border-3 border-white/30 ring-4 ring-amber-400/30 my-1.5 sm:my-2 shadow-2xl hover:scale-[1.02]'
                 : 'w-40 h-24 xs:w-48 xs:h-30 sm:w-64 sm:h-40 md:w-72 md:h-44 rounded-2xl border-2 sm:border-3 border-white/25 ring-4 ring-white/10 my-1.5 sm:my-2 hover:scale-[1.02]'
             }`}
           >
@@ -690,7 +856,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                 <div className="grid grid-cols-2 gap-2 sm:gap-2.5 w-full">
                   {question.options.map((option, idx) => {
                     const shape = SHAPES[idx % SHAPES.length];
-                    const isCapital = option.toLowerCase().trim() === question.capital.toLowerCase().trim();
+                    const isCapital = option.toLowerCase().trim() === targetAnswer.toLowerCase().trim();
                     const isSelected = (answeredCity || selectedCarreOption)?.toLowerCase().trim() === option.toLowerCase().trim();
 
                     if (isCapital) {
@@ -765,7 +931,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                   {(status === 'minor_error' || status === 'wrong') && (
                     <CashSpellingFeedback
                       userInput={answeredCity || cashInput}
-                      correctAnswer={question.capital}
+                      correctAnswer={targetAnswer}
                       analysis={
                         (isDesignatedPlayer ? localFeedback.spellingAnalysis : currentAns?.spellingAnalysis) ||
                         undefined
@@ -787,8 +953,13 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                       La bonne réponse était :
                     </span>
                   </div>
-                  <span className="text-white font-black text-sm sm:text-base md:text-lg tracking-wider uppercase bg-emerald-600 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-lg border border-emerald-300 shadow-md">
-                    {question.capital}
+                  <span className="text-white font-black text-sm sm:text-base md:text-lg tracking-wider uppercase bg-emerald-600 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-lg border border-emerald-300 shadow-md flex items-center gap-1.5">
+                    <span>{targetAnswer}</span>
+                    {isFlagMode && (
+                      <span className="text-[10px] sm:text-xs text-white/80 font-normal">
+                        (Capitale : {question.capital})
+                      </span>
+                    )}
                   </span>
                 </div>
               )}
@@ -823,14 +994,29 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                     </h3>
                   </div>
 
-                  <div
-                    className={`px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-black border ${
-                      isCorrect
-                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                        : 'bg-rose-500/20 text-rose-300 border-rose-500/40'
-                    }`}
-                  >
-                    {isCorrect ? `+${points} pts` : '0 pt'}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {party.gameMode === 'chrono' && isCorrect && (
+                      <span className="bg-amber-400/20 text-amber-300 border border-amber-400/40 px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-black flex items-center gap-1">
+                        <span>
+                          {(isDesignatedPlayer ? localFeedback.speedRank : currentAns?.speedRank) === 1
+                            ? '🥇 1er'
+                            : (isDesignatedPlayer ? localFeedback.speedRank : currentAns?.speedRank) === 2
+                            ? '🥈 2e'
+                            : (isDesignatedPlayer ? localFeedback.speedRank : currentAns?.speedRank) === 3
+                            ? '🥉 3e'
+                            : `🏅 ${(isDesignatedPlayer ? localFeedback.speedRank : currentAns?.speedRank) || 1}e`}
+                        </span>
+                      </span>
+                    )}
+                    <div
+                      className={`px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-black border ${
+                        isCorrect
+                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                          : 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                      }`}
+                    >
+                      {isCorrect ? `+${points} pts` : '0 pt'}
+                    </div>
                   </div>
                 </div>
 
@@ -839,6 +1025,11 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                   <p className="text-[11px] sm:text-xs md:text-sm text-white/95 font-semibold italic leading-snug">
                     « {punchline} »
                   </p>
+                  {party.gameMode === 'chrono' && isCorrect && (
+                    <p className="text-[10px] text-amber-300/85 font-medium mt-0.5">
+                      ⏱️ Top Chrono : {(isDesignatedPlayer ? localFeedback.speedRank : currentAns?.speedRank) === 1 ? '1er à valider (100% des points)' : (isDesignatedPlayer ? localFeedback.speedRank : currentAns?.speedRank) === 2 ? '2e à valider (70% des points)' : (isDesignatedPlayer ? localFeedback.speedRank : currentAns?.speedRank) === 3 ? '3e à valider (50% des points)' : `${(isDesignatedPlayer ? localFeedback.speedRank : currentAns?.speedRank)}e à valider`}
+                    </p>
+                  )}
                 </div>
 
                 {/* Multiplayer live feedback: See what other players answered */}
@@ -932,7 +1123,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                         <div className="pt-1 w-full">
                           <CashSpellingFeedback
                             userInput={inspectedAns.answer}
-                            correctAnswer={question.capital}
+                            correctAnswer={targetAnswer}
                             analysis={inspectedAns.spellingAnalysis}
                             status={
                               inspectedAns.isCorrect
@@ -1001,7 +1192,10 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                           <div className="flex items-center justify-center gap-2 w-full">
                             <button
                               onClick={handleAdvanceToMap}
-                              className="flex-1 flex items-center justify-center gap-1.5 bg-[#FB923C] hover:brightness-110 text-[#1A1443] font-black text-xs sm:text-sm uppercase tracking-wider py-2 sm:py-2.5 rounded-xl shadow-lg transition-all cursor-pointer hover:scale-[1.02] active:scale-95"
+                              disabled={isAdvancing}
+                              className={`flex-1 flex items-center justify-center gap-1.5 bg-[#FB923C] hover:brightness-110 text-[#1A1443] font-black text-xs sm:text-sm uppercase tracking-wider py-2 sm:py-2.5 rounded-xl shadow-lg transition-all cursor-pointer hover:scale-[1.02] active:scale-95 ${
+                                isAdvancing ? 'opacity-60 pointer-events-none' : ''
+                              }`}
                             >
                               <MapPin className="w-4 h-4" />
                               <span>Voir la carte</span>
@@ -1009,7 +1203,10 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
 
                             <button
                               onClick={handleSkipMap}
-                              className="flex-1 flex items-center justify-center gap-1.5 bg-white/20 hover:bg-white/30 text-white border border-white/20 font-black text-xs sm:text-sm uppercase tracking-wider py-2 sm:py-2.5 rounded-xl shadow-lg transition-all cursor-pointer hover:scale-[1.02] active:scale-95"
+                              disabled={isAdvancing}
+                              className={`flex-1 flex items-center justify-center gap-1.5 bg-white/20 hover:bg-white/30 text-white border border-white/20 font-black text-xs sm:text-sm uppercase tracking-wider py-2 sm:py-2.5 rounded-xl shadow-lg transition-all cursor-pointer hover:scale-[1.02] active:scale-95 ${
+                                isAdvancing ? 'opacity-60 pointer-events-none' : ''
+                              }`}
                             >
                               <SkipForward className="w-4 h-4" />
                               <span>Question suivante →</span>
@@ -1024,7 +1221,10 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                   <div className="flex items-center justify-center gap-2 w-full pt-0.5">
                     <button
                       onClick={handleAdvanceToMap}
-                      className="flex-1 flex items-center justify-center gap-1.5 bg-[#FB923C] hover:brightness-110 text-[#1A1443] font-black text-xs sm:text-sm uppercase tracking-wider py-2 sm:py-2.5 rounded-xl shadow-lg transition-all cursor-pointer hover:scale-[1.02] active:scale-95"
+                      disabled={isAdvancing}
+                      className={`flex-1 flex items-center justify-center gap-1.5 bg-[#FB923C] hover:brightness-110 text-[#1A1443] font-black text-xs sm:text-sm uppercase tracking-wider py-2 sm:py-2.5 rounded-xl shadow-lg transition-all cursor-pointer hover:scale-[1.02] active:scale-95 ${
+                        isAdvancing ? 'opacity-60 pointer-events-none' : ''
+                      }`}
                     >
                       <MapPin className="w-4 h-4" />
                       <span>Voir la carte</span>
@@ -1032,7 +1232,10 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
 
                     <button
                       onClick={handleSkipMap}
-                      className="flex-1 flex items-center justify-center gap-1.5 bg-white/20 hover:bg-white/30 text-white border border-white/20 font-black text-xs sm:text-sm uppercase tracking-wider py-2 sm:py-2.5 rounded-xl shadow-lg transition-all cursor-pointer hover:scale-[1.02] active:scale-95"
+                      disabled={isAdvancing}
+                      className={`flex-1 flex items-center justify-center gap-1.5 bg-white/20 hover:bg-white/30 text-white border border-white/20 font-black text-xs sm:text-sm uppercase tracking-wider py-2 sm:py-2.5 rounded-xl shadow-lg transition-all cursor-pointer hover:scale-[1.02] active:scale-95 ${
+                        isAdvancing ? 'opacity-60 pointer-events-none' : ''
+                      }`}
                     >
                       <SkipForward className="w-4 h-4" />
                       <span>
@@ -1110,7 +1313,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                 {designatedPlayer.currentAnswer.mode === 'cash' && (
                   <CashSpellingFeedback
                     userInput={designatedPlayer.currentAnswer.answer}
-                    correctAnswer={question.capital}
+                    correctAnswer={targetAnswer}
                     analysis={designatedPlayer.currentAnswer.spellingAnalysis}
                     status={
                       designatedPlayer.currentAnswer.isCorrect
@@ -1144,7 +1347,10 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                   ) : (
                     <button
                       onClick={handleAdvanceToMap}
-                      className="flex-1 flex items-center justify-center gap-1.5 bg-[#FB923C] hover:brightness-110 text-[#1A1443] font-black text-xs uppercase tracking-wider py-2 rounded-xl shadow-lg transition-all cursor-pointer"
+                      disabled={isAdvancing}
+                      className={`flex-1 flex items-center justify-center gap-1.5 bg-[#FB923C] hover:brightness-110 text-[#1A1443] font-black text-xs uppercase tracking-wider py-2 rounded-xl shadow-lg transition-all cursor-pointer ${
+                        isAdvancing ? 'opacity-60 pointer-events-none' : ''
+                      }`}
                     >
                       <MapPin className="w-4 h-4" />
                       <span>Voir la carte</span>
@@ -1279,7 +1485,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                 type="text"
                 value={cashInput}
                 onChange={(e) => setCashInput(e.target.value)}
-                placeholder="Tapez la capitale..."
+                placeholder={isFlagMode ? "Tapez le nom du pays..." : "Tapez la capitale..."}
                 autoComplete="off"
                 autoCapitalize="words"
                 className="flex-1 min-w-0 w-full bg-[#1A1443]/80 border-2 border-white/20 focus:border-white text-white text-sm sm:text-base md:text-lg font-black uppercase tracking-wide px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl outline-none transition-all placeholder:text-white/30 shadow-inner"
@@ -1304,7 +1510,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
             <div className="w-full flex items-center justify-between text-xs text-white/70 font-bold uppercase tracking-wider px-1">
               <span className="flex items-center gap-1.5 text-emerald-400">
                 <LayoutGrid className="w-4 h-4" />
-                Mode Carré : choisissez la bonne ville
+                Mode Carré : {isFlagMode ? 'choisissez le bon pays' : 'choisissez la bonne ville'}
               </span>
               <button
                 type="button"

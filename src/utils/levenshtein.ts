@@ -1,5 +1,6 @@
 import {
   Difficulty,
+  GameMode,
   LevenshteinEvaluation,
   ResponseMode,
   SpellingAnalysis,
@@ -289,8 +290,38 @@ export const DIFFICULTY_BASE_POINTS: Record<Difficulty, number> = {
 };
 
 /**
+ * Multiplicateur dégressif selon l'ordre d'arrivée des bonnes réponses en mode Top Chrono
+ * - 1er : 100% (ex: 50 pts en Cash, 25 pts en Carré)
+ * - 2ème : 70% (ex: 35 pts en Cash, 18 pts en Carré)
+ * - 3ème : 50% (ex: 25 pts en Cash, 12 pts en Carré)
+ * - 4ème : 35% (ex: 17 pts en Cash, 9 pts en Carré)
+ * - 5ème et + : 25% (une bonne réponse reste toujours récompensée)
+ */
+export function getRankMultiplier(rank: number): number {
+  if (rank <= 1) return 1.0;
+  if (rank === 2) return 0.70;
+  if (rank === 3) return 0.50;
+  if (rank === 4) return 0.35;
+  return 0.25;
+}
+
+export function getRankBadge(rank: number): { emoji: string; label: string } {
+  switch (rank) {
+    case 1:
+      return { emoji: '🥇', label: '1er à répondre' };
+    case 2:
+      return { emoji: '🥈', label: '2e à répondre' };
+    case 3:
+      return { emoji: '🥉', label: '3e à répondre' };
+    default:
+      return { emoji: '🏅', label: `${rank}e à répondre` };
+  }
+}
+
+/**
  * Calcule le score final de la manche selon la formule :
- * score = points de base × multiplicateur de mode × multiplicateur de vitesse
+ * - Mode classique : points basés sur le mode (Cash 100%, Carré 50%)
+ * - Mode Top Chrono : barème dégressif par ordre d'arrivée des bonnes réponses (1er 100%, 2e 70%, 3e 50%...)
  */
 export function calculateRoundScore(
   difficulty: Difficulty,
@@ -298,21 +329,34 @@ export function calculateRoundScore(
   isCorrectOrAccepted: boolean,
   pointsPercentage: number, // 0, 50, or 100
   timeTaken: number = 0,
-  totalTime: number = 0
-): { points: number; speedMultiplier: number; basePoints: number } {
+  totalTime: number = 0,
+  gameMode: GameMode = 'classic',
+  rank: number = 1
+): { points: number; speedMultiplier: number; basePoints: number; speedBonus: number; rank: number } {
   const basePoints = DIFFICULTY_BASE_POINTS[difficulty];
 
   if (!isCorrectOrAccepted || pointsPercentage === 0) {
-    return { points: 0, speedMultiplier: 1, basePoints };
+    return { points: 0, speedMultiplier: 1, basePoints, speedBonus: 0, rank: 0 };
   }
 
-  // Pas de chrono : calcul direct basé sur le mode et la précision
   const modeMultiplier = pointsPercentage / 100; // 1.0 (Cash exact) ou 0.5 (Cash toléré ou Carré)
-  const points = Math.round(basePoints * modeMultiplier);
+  const fullAvailablePoints = Math.round(basePoints * modeMultiplier);
+
+  let rankMultiplier = 1.0;
+  let effectiveRank = 1;
+
+  if (gameMode === 'chrono') {
+    effectiveRank = Math.max(1, rank);
+    rankMultiplier = getRankMultiplier(effectiveRank);
+  }
+
+  const points = Math.round(fullAvailablePoints * rankMultiplier);
 
   return {
     points,
-    speedMultiplier: 1,
+    speedMultiplier: rankMultiplier,
     basePoints,
+    speedBonus: points - fullAvailablePoints, // négatif ou zéro par rapport au score max si rang > 1
+    rank: effectiveRank,
   };
 }

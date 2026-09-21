@@ -385,18 +385,22 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <div>
               <p className="text-xs uppercase tracking-widest text-white/60 mb-2 font-bold flex items-center justify-between">
                 <span>Mode de jeu</span>
-                {createGameMode === 'wheel' && (
+                {createGameMode === 'flag' ? (
+                  <span className="text-rose-300 font-black text-[11px] animate-pulse">🚩 Drapeau actif</span>
+                ) : createGameMode === 'wheel' ? (
                   <span className="text-[#FB923C] font-black text-[11px] animate-pulse">🎡 Roue active</span>
-                )}
+                ) : createGameMode === 'chrono' ? (
+                  <span className="text-amber-300 font-black text-[11px] animate-pulse">⏱️ Top Chrono actif</span>
+                ) : null}
               </p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <button
                   type="button"
                   onClick={() => {
                     sounds.playClick();
                     setCreateGameMode('classic');
                   }}
-                  className={`p-3 text-left rounded-xl border transition-all cursor-pointer flex flex-col gap-1 ${
+                  className={`p-2.5 sm:p-3 text-left rounded-xl border transition-all cursor-pointer flex flex-col gap-1 ${
                     createGameMode === 'classic'
                       ? 'bg-white text-[#1A1443] border-white shadow-lg ring-2 ring-[#FB923C]/50'
                       : 'bg-[#1A1443]/60 text-white/80 border-white/10 hover:bg-white/10'
@@ -407,7 +411,49 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     <span>Classique</span>
                   </div>
                   <span className="text-[10px] leading-tight opacity-75 font-medium">
-                    Questions directes sur tous les pays
+                    Trouvez la capitale des pays
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    sounds.playClick();
+                    setCreateGameMode('flag');
+                  }}
+                  className={`p-2.5 sm:p-3 text-left rounded-xl border transition-all cursor-pointer flex flex-col gap-1 ${
+                    createGameMode === 'flag'
+                      ? 'bg-gradient-to-br from-rose-500 to-amber-500 text-white border-rose-300 shadow-lg ring-2 ring-white/50'
+                      : 'bg-[#1A1443]/60 text-white/80 border-white/10 hover:bg-white/10'
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5 font-black text-xs uppercase tracking-wide">
+                    <span>🚩</span>
+                    <span>Drapeaux</span>
+                  </div>
+                  <span className="text-[10px] leading-tight opacity-90 font-medium">
+                    Devinez le pays d'après son drapeau
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    sounds.playClick();
+                    setCreateGameMode('chrono');
+                  }}
+                  className={`p-2.5 sm:p-3 text-left rounded-xl border transition-all cursor-pointer flex flex-col gap-1 ${
+                    createGameMode === 'chrono'
+                      ? 'bg-gradient-to-br from-amber-300 to-amber-500 text-[#1A1443] border-amber-200 shadow-lg ring-2 ring-white/50'
+                      : 'bg-[#1A1443]/60 text-white/80 border-white/10 hover:bg-white/10'
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5 font-black text-xs uppercase tracking-wide">
+                    <span>⏱️</span>
+                    <span>Top Chrono</span>
+                  </div>
+                  <span className="text-[10px] leading-tight opacity-85 font-medium">
+                    1er = 100%, suivants gagnent moins
                   </span>
                 </button>
 
@@ -417,7 +463,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     sounds.playClick();
                     setCreateGameMode('wheel');
                   }}
-                  className={`p-3 text-left rounded-xl border transition-all cursor-pointer flex flex-col gap-1 relative overflow-hidden ${
+                  className={`p-2.5 sm:p-3 text-left rounded-xl border transition-all cursor-pointer flex flex-col gap-1 relative overflow-hidden ${
                     createGameMode === 'wheel'
                       ? 'bg-gradient-to-br from-amber-400 to-[#FB923C] text-[#1A1443] border-amber-300 shadow-lg ring-2 ring-white/50'
                       : 'bg-[#1A1443]/60 text-white/80 border-white/10 hover:bg-white/10'
@@ -428,7 +474,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     <span>La Roue</span>
                   </div>
                   <span className="text-[10px] leading-tight opacity-80 font-medium">
-                    Tournez la roue : continents & jokers
+                    Continents & jokers
                   </span>
                 </button>
               </div>
@@ -595,18 +641,22 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <div>
               <p className="text-xs uppercase tracking-widest text-white/60 mb-2 font-bold flex items-center justify-between">
                 <span>Mode de jeu</span>
-                {localGameMode === 'wheel' && (
+                {localGameMode === 'flag' ? (
+                  <span className="text-rose-300 font-black text-[11px] animate-pulse">🚩 Drapeau actif</span>
+                ) : localGameMode === 'wheel' ? (
                   <span className="text-[#FB923C] font-black text-[11px] animate-pulse">🎡 Roue active</span>
-                )}
+                ) : localGameMode === 'chrono' ? (
+                  <span className="text-amber-300 font-black text-[11px] animate-pulse">⏱️ Top Chrono actif</span>
+                ) : null}
               </p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <button
                   type="button"
                   onClick={() => {
                     sounds.playClick();
                     setLocalGameMode('classic');
                   }}
-                  className={`p-3 text-left rounded-xl border transition-all cursor-pointer flex flex-col gap-1 ${
+                  className={`p-2.5 sm:p-3 text-left rounded-xl border transition-all cursor-pointer flex flex-col gap-1 ${
                     localGameMode === 'classic'
                       ? 'bg-white text-[#1A1443] border-white shadow-lg ring-2 ring-[#FB923C]/50'
                       : 'bg-[#1A1443]/60 text-white/80 border-white/10 hover:bg-white/10'
@@ -617,7 +667,49 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     <span>Classique</span>
                   </div>
                   <span className="text-[10px] leading-tight opacity-75 font-medium">
-                    Questions directes sur tous les pays
+                    Trouvez la capitale des pays
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    sounds.playClick();
+                    setLocalGameMode('flag');
+                  }}
+                  className={`p-2.5 sm:p-3 text-left rounded-xl border transition-all cursor-pointer flex flex-col gap-1 ${
+                    localGameMode === 'flag'
+                      ? 'bg-gradient-to-br from-rose-500 to-amber-500 text-white border-rose-300 shadow-lg ring-2 ring-white/50'
+                      : 'bg-[#1A1443]/60 text-white/80 border-white/10 hover:bg-white/10'
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5 font-black text-xs uppercase tracking-wide">
+                    <span>🚩</span>
+                    <span>Drapeaux</span>
+                  </div>
+                  <span className="text-[10px] leading-tight opacity-90 font-medium">
+                    Devinez le pays d'après son drapeau
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    sounds.playClick();
+                    setLocalGameMode('chrono');
+                  }}
+                  className={`p-2.5 sm:p-3 text-left rounded-xl border transition-all cursor-pointer flex flex-col gap-1 ${
+                    localGameMode === 'chrono'
+                      ? 'bg-gradient-to-br from-amber-300 to-amber-500 text-[#1A1443] border-amber-200 shadow-lg ring-2 ring-white/50'
+                      : 'bg-[#1A1443]/60 text-white/80 border-white/10 hover:bg-white/10'
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5 font-black text-xs uppercase tracking-wide">
+                    <span>⏱️</span>
+                    <span>Top Chrono</span>
+                  </div>
+                  <span className="text-[10px] leading-tight opacity-85 font-medium">
+                    1er = 100%, suivants gagnent moins
                   </span>
                 </button>
 
@@ -627,7 +719,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     sounds.playClick();
                     setLocalGameMode('wheel');
                   }}
-                  className={`p-3 text-left rounded-xl border transition-all cursor-pointer flex flex-col gap-1 relative overflow-hidden ${
+                  className={`p-2.5 sm:p-3 text-left rounded-xl border transition-all cursor-pointer flex flex-col gap-1 relative overflow-hidden ${
                     localGameMode === 'wheel'
                       ? 'bg-gradient-to-br from-amber-400 to-[#FB923C] text-[#1A1443] border-amber-300 shadow-lg ring-2 ring-white/50'
                       : 'bg-[#1A1443]/60 text-white/80 border-white/10 hover:bg-white/10'
@@ -638,7 +730,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     <span>La Roue</span>
                   </div>
                   <span className="text-[10px] leading-tight opacity-80 font-medium">
-                    Tournez la roue : continents & jokers
+                    Continents & jokers
                   </span>
                 </button>
               </div>
@@ -785,6 +877,21 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 <p className="text-white/60 mt-1">
                   Points de base : Facile = 10 pts, Moyen = 25 pts, Difficile = 50 pts.
                 </p>
+              </div>
+
+              <div className="bg-amber-400/10 border border-amber-300/30 p-4 rounded-xl">
+                <div className="font-black text-amber-300 uppercase text-xs tracking-wider mb-1 flex items-center gap-1.5">
+                  <span>⏱️ Mode Top Chrono (Barème dégressif)</span>
+                </div>
+                <p>
+                  Une véritable course contre la montre ! Le premier qui répond correctement remporte le maximum de points (ex: 50 pts en Cash, 25 pts en Carré). Le deuxième gagne moins de points, le troisième encore moins, et ainsi de suite :
+                </p>
+                <ul className="list-disc list-inside mt-1 text-white/70 space-y-0.5">
+                  <li>🥇 <strong>1er à valider : 100%</strong> des points (ex: 50 pts Cash / 25 pts Carré)</li>
+                  <li>🥈 <strong>2ème à valider : 70%</strong> des points (ex: 35 pts Cash / 18 pts Carré)</li>
+                  <li>🥉 <strong>3ème à valider : 50%</strong> des points (ex: 25 pts Cash / 12 pts Carré)</li>
+                  <li>🏅 <strong>4ème et + : 35%</strong> (une bonne réponse reste toujours valorisée !)</li>
+                </ul>
               </div>
 
               <div className="bg-amber-500/10 border border-amber-400/30 p-4 rounded-xl">

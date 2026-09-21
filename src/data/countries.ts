@@ -1,4 +1,4 @@
-import { CountryItem } from '../types';
+import { CountryItem, GameMode, GameQuestion } from '../types';
 import { COUNTRY_CONTINENTS } from './wheelData';
 
 export const COUNTRIES_DATABASE: CountryItem[] = [
@@ -1150,13 +1150,78 @@ const ISLAND_NATION_IDS = new Set([
 ]);
 
 /**
- * Génère une liste de questions avec distinction très prononcée des niveaux
- * et système anti-répétition entre les parties.
+ * Variantes et synonymes acceptables pour les noms de pays en mode "Devine le drapeau"
+ */
+export const COUNTRY_ACCEPTABLE_ANSWERS: Record<string, string[]> = {
+  US: ['Etats-Unis', 'Etats Unis', 'USA', 'United States', "Etats-Unis d'Amerique", "États-Unis d'Amérique", 'Amerique'],
+  GB: ['Royaume-Uni', 'Royaume Uni', 'UK', 'Grande-Bretagne', 'Grande Bretagne', 'Angleterre', 'United Kingdom'],
+  AE: ['Emirats arabes unis', 'Emirats Arabes Unis', 'EAU', 'UAE', 'Emirats'],
+  CD: ['RDC', 'RD Congo', 'Congo-Kinshasa', 'Congo Kinshasa', 'Republique Democratique du Congo'],
+  CG: ['Congo', 'Congo-Brazzaville', 'Congo Brazzaville', 'Republique du Congo'],
+  CF: ['Centrafrique', 'RCA', 'Republique centrafricaine'],
+  NL: ['Pays-Bas', 'Pays Bas', 'Hollande', 'Netherlands'],
+  KR: ['Coree du Sud', 'Corée du Sud', 'South Korea'],
+  KP: ['Coree du Nord', 'Corée du Nord', 'North Korea'],
+  RU: ['Russie', 'Federation de Russie', 'Russia'],
+  ZA: ['Afrique du Sud', 'South Africa'],
+  NZ: ['Nouvelle-Zelande', 'Nouvelle Zélande', 'New Zealand'],
+  VA: ['Vatican', 'Saint-Siege', 'Cite du Vatican', 'Cité du Vatican'],
+  BA: ['Bosnie', 'Bosnie-Herzegovine', 'Bosnie Herzegovine'],
+  MK: ['Macedoine', 'Macedoine du Nord', 'Macédoine'],
+  ST: ['Sao Tome', 'Sao Tome et Principe', 'Sao Tomé'],
+  VC: ['Saint-Vincent', 'Saint Vincent', 'Saint-Vincent-et-les-Grenadines'],
+  KN: ['Saint-Christophe', 'Saint-Kitts', 'Saint-Kitts-et-Nevis'],
+  TT: ['Trinite-et-Tobago', 'Trinite et Tobago'],
+  AG: ['Antigua', 'Antigua-et-Barbuda'],
+  DO: ['Republique dominicaine', 'Republique Dominicaine'],
+  CZ: ['Tchequie', 'Republique tcheque', 'Republique Tcheque'],
+  CI: ["Cote d'Ivoire", 'Cote d Ivoire'],
+  CV: ['Cap-Vert', 'Cap Vert'],
+  TL: ['Timor oriental', 'Timor oriental', 'Timor-Leste'],
+  PG: ['Papouasie', 'Papouasie-Nouvelle-Guinee', 'PNG'],
+  FM: ['Micronesie', 'Etats federes de Micronesie'],
+  SZ: ['Eswatini', 'Swaziland'],
+  MM: ['Birmanie', 'Myanmar'],
+};
+
+/**
+ * Sélectionne 3 pays distracteurs réalistes (priorité même continent ou même difficulté)
+ */
+export function getCountryDistractors(item: CountryItem): string[] {
+  const continent = COUNTRY_CONTINENTS[item.id];
+  const sameContinent = COUNTRIES_DATABASE.filter(
+    (c) => c.id !== item.id && COUNTRY_CONTINENTS[c.id] === continent
+  );
+
+  let pool = sameContinent;
+  if (pool.length < 3) {
+    const sameDiff = COUNTRIES_DATABASE.filter((c) => c.id !== item.id && c.difficulty === item.difficulty);
+    pool = [...pool, ...sameDiff];
+  }
+  if (pool.length < 3) {
+    pool = COUNTRIES_DATABASE.filter((c) => c.id !== item.id);
+  }
+
+  const shuffled = shuffleArray(pool);
+  const distractors: string[] = [];
+  for (const c of shuffled) {
+    if (!distractors.includes(c.country) && c.country !== item.country) {
+      distractors.push(c.country);
+      if (distractors.length === 3) break;
+    }
+  }
+  return distractors;
+}
+
+/**
+ * Génère une liste de questions avec distinction très prononcée des niveaux,
+ * support du mode "devine le drapeau" et système anti-répétition entre les parties.
  */
 export function generateQuestions(
   difficulty: 'facile' | 'moyen' | 'difficile' | 'mix',
-  count: number = 5
-) {
+  count: number = 5,
+  gameMode: GameMode = 'classic'
+): GameQuestion[] {
   const recentIds = new Set(getRecentCountryIds());
 
   let selected: CountryItem[] = [];
@@ -1218,6 +1283,24 @@ export function generateQuestions(
   rememberCountryIds(selected.map((s) => s.id));
 
   return selected.map((item) => {
+    if (gameMode === 'flag') {
+      const countryDistractors = getCountryDistractors(item);
+      const options = shuffleArray([item.country, ...countryDistractors]);
+      const synonyms = COUNTRY_ACCEPTABLE_ANSWERS[item.id] || [];
+      return {
+        countryId: item.id,
+        country: item.country,
+        capital: item.capital,
+        flag: item.flag,
+        difficulty: item.difficulty,
+        options,
+        coordinates: item.coordinates,
+        acceptableAnswers: item.acceptableAnswers,
+        questionType: 'flag' as const,
+        acceptableCountryAnswers: [item.country, ...synonyms],
+      };
+    }
+
     const options = shuffleArray([item.capital, ...item.distractors]);
     return {
       countryId: item.id,
@@ -1228,6 +1311,7 @@ export function generateQuestions(
       options,
       coordinates: item.coordinates,
       acceptableAnswers: item.acceptableAnswers,
+      questionType: 'capital' as const,
     };
   });
 }

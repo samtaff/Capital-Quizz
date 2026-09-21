@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CheckCircle, XCircle, ArrowRight, Trophy, SkipForward, Users, SpellCheck, Lock } from 'lucide-react';
 import { GameQuestion, PartyDoc, Player } from '../types';
@@ -31,7 +31,19 @@ export const RoundReview: React.FC<RoundReviewProps> = ({
   const isMultiplayer = playersList.length > 1;
   const isOnlineMultiplayer = !party.isLocal && isMultiplayer;
   const answeredCount = playersList.filter((p) => Boolean(p.currentAnswer)).length;
-  const allPlayersAnswered = answeredCount >= playersList.length;
+  const isWheelMode = party.gameMode === 'wheel';
+  const interrogatedPlayerId = party.activePlayerId;
+  const hasDesignatedPlayer = Boolean(isWheelMode && interrogatedPlayerId);
+  const designatedPlayer = hasDesignatedPlayer ? party.players?.[interrogatedPlayerId!] : null;
+  const allPlayersAnswered = isWheelMode && hasDesignatedPlayer
+    ? Boolean(designatedPlayer?.currentAnswer)
+    : answeredCount >= playersList.length;
+
+  const [isAdvancing, setIsAdvancing] = useState(false);
+
+  useEffect(() => {
+    setIsAdvancing(false);
+  }, [party.currentRoundIndex, party.status]);
 
   const [showSpellingDetail, setShowSpellingDetail] = useState(false);
   const [selectedTypoPlayerId, setSelectedTypoPlayerId] = useState<string | null>(null);
@@ -52,16 +64,20 @@ export const RoundReview: React.FC<RoundReviewProps> = ({
     : (playersWithCashTypo.find((p) => p.id === currentPlayerId) || playersWithCashTypo[0]);
   const activeTypoAnswer = activeTypoPlayer?.currentAnswer;
 
-  const handleNext = () => {
+  const handleNext = async () => {
+    if (isAdvancing) return;
     if (isOnlineMultiplayer && !allPlayersAnswered) return;
+    setIsAdvancing(true);
     sounds.playClick();
-    showLeaderboard(party.code);
+    await showLeaderboard(party.code);
   };
 
-  const handleSkip = () => {
+  const handleSkip = async () => {
+    if (isAdvancing) return;
     if (isOnlineMultiplayer && !allPlayersAnswered) return;
+    setIsAdvancing(true);
     sounds.playClick();
-    nextRoundOrEnd(party.code);
+    await nextRoundOrEnd(party.code);
   };
 
   return (
@@ -88,6 +104,12 @@ export const RoundReview: React.FC<RoundReviewProps> = ({
               <span className="text-white font-black text-sm sm:text-base uppercase tracking-tight truncate">
                 {question.country}
               </span>
+              {party.gameMode === 'flag' && (
+                <span className="bg-gradient-to-r from-red-500 to-amber-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase shadow-sm flex items-center gap-1">
+                  <span>🚩</span>
+                  <span>Drapeau</span>
+                </span>
+              )}
 
               {roundAnswer && (
                 <span
@@ -163,7 +185,10 @@ export const RoundReview: React.FC<RoundReviewProps> = ({
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleNext}
-                  className="flex items-center gap-1.5 bg-white/10 hover:bg-white/20 active:scale-95 text-white font-black uppercase tracking-wider px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl border border-white/15 transition-all cursor-pointer text-xs sm:text-sm"
+                  disabled={isAdvancing}
+                  className={`flex items-center gap-1.5 bg-white/10 hover:bg-white/20 active:scale-95 text-white font-black uppercase tracking-wider px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl border border-white/15 transition-all cursor-pointer text-xs sm:text-sm ${
+                    isAdvancing ? 'opacity-60 pointer-events-none' : ''
+                  }`}
                   title="Afficher le classement"
                 >
                   <Trophy className="w-3.5 h-3.5 text-amber-400" />
@@ -172,7 +197,10 @@ export const RoundReview: React.FC<RoundReviewProps> = ({
 
                 <button
                   onClick={handleSkip}
-                  className="flex items-center gap-1.5 bg-[#FB923C] hover:brightness-110 active:scale-95 text-[#1A1443] font-black uppercase tracking-wider px-3.5 sm:px-4.5 py-1.5 sm:py-2 rounded-xl shadow-lg shadow-[#FB923C]/20 transition-all cursor-pointer text-xs sm:text-sm hover:scale-[1.02]"
+                  disabled={isAdvancing}
+                  className={`flex items-center gap-1.5 bg-[#FB923C] hover:brightness-110 active:scale-95 text-[#1A1443] font-black uppercase tracking-wider px-3.5 sm:px-4.5 py-1.5 sm:py-2 rounded-xl shadow-lg shadow-[#FB923C]/20 transition-all cursor-pointer text-xs sm:text-sm hover:scale-[1.02] ${
+                    isAdvancing ? 'opacity-60 pointer-events-none' : ''
+                  }`}
                   title="Passer à la suite"
                 >
                   <span>{party.isLocal ? (isEndOfRound ? 'Classement' : 'Joueur suivant') : 'Suivant'}</span>
@@ -231,7 +259,7 @@ export const RoundReview: React.FC<RoundReviewProps> = ({
 
             <CashSpellingFeedback
               userInput={activeTypoAnswer.answer}
-              correctAnswer={question.capital}
+              correctAnswer={party.gameMode === 'flag' ? question.country : question.capital}
               analysis={activeTypoAnswer.spellingAnalysis}
               status={
                 activeTypoAnswer.isCorrect
@@ -310,6 +338,22 @@ export const RoundReview: React.FC<RoundReviewProps> = ({
                       <span className="flex items-center gap-1 text-[11px] font-black text-emerald-400">
                         <CheckCircle className="w-3 h-3" />
                         <span>+{points} pts</span>
+                        {party.gameMode === 'chrono' && (
+                          <span className="text-[9px] text-amber-300 font-bold bg-amber-400/20 px-1.5 py-0.5 rounded border border-amber-400/30 flex items-center gap-1">
+                            <span>
+                              {ans.speedRank === 1
+                                ? '🥇 1er'
+                                : ans.speedRank === 2
+                                ? '🥈 2e'
+                                : ans.speedRank === 3
+                                ? '🥉 3e'
+                                : ans.speedRank
+                                ? `🏅 ${ans.speedRank}e`
+                                : '⏱️'}
+                            </span>
+                            <span>{ans.timeTaken}s</span>
+                          </span>
+                        )}
                         <span className="text-[9px] opacity-80 font-normal">
                           ({ans.mode === 'cash' ? '⚡' : '🔲'})
                         </span>
@@ -318,6 +362,11 @@ export const RoundReview: React.FC<RoundReviewProps> = ({
                       <span className="flex items-center gap-1 text-[11px] font-black text-rose-400">
                         <XCircle className="w-3 h-3" />
                         <span>0 pt</span>
+                        {party.gameMode === 'chrono' && (
+                          <span className="text-[9px] text-white/60 font-medium">
+                            ⏱️ {ans.timeTaken}s
+                          </span>
+                        )}
                         <span className="text-[9px] opacity-80 font-normal">
                           ({ans.mode === 'cash' ? '⚡' : '🔲'})
                         </span>

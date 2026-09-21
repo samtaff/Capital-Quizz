@@ -187,15 +187,19 @@ export const Lobby: React.FC<LobbyProps> = ({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Game Mode selection (Classique vs Roue) */}
+            {/* Game Mode selection (Classique vs Drapeaux vs Top Chrono vs Roue) */}
             <div className="sm:col-span-2">
               <p className="text-xs uppercase tracking-widest text-white/60 mb-2 font-bold flex items-center justify-between">
                 <span>Mode de jeu</span>
-                {party.gameMode === 'wheel' && (
+                {party.gameMode === 'flag' ? (
+                  <span className="text-rose-300 font-black text-[11px] animate-pulse">🚩 Mode Drapeau actif</span>
+                ) : party.gameMode === 'wheel' ? (
                   <span className="text-[#FB923C] font-black text-[11px] animate-pulse">🎡 Roue active</span>
-                )}
+                ) : party.gameMode === 'chrono' ? (
+                  <span className="text-amber-300 font-black text-[11px] animate-pulse">⏱️ Top Chrono actif</span>
+                ) : null}
               </p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <button
                   onClick={() => handleGameModeChange('classic')}
                   className={`p-2.5 text-left rounded-xl border transition-all cursor-pointer flex flex-col gap-0.5 ${
@@ -205,8 +209,33 @@ export const Lobby: React.FC<LobbyProps> = ({
                   }`}
                 >
                   <span className="font-black text-xs uppercase">⚡ Classique</span>
-                  <span className="text-[10px] opacity-75 font-medium">Questions directes sur tous les pays</span>
+                  <span className="text-[10px] opacity-75 font-medium">Devine les capitales</span>
                 </button>
+
+                <button
+                  onClick={() => handleGameModeChange('flag')}
+                  className={`p-2.5 text-left rounded-xl border transition-all cursor-pointer flex flex-col gap-0.5 ${
+                    party.gameMode === 'flag'
+                      ? 'bg-gradient-to-br from-rose-500 to-amber-500 text-white border-rose-300 shadow-md ring-2 ring-white/50'
+                      : 'bg-[#1A1443]/60 text-white/80 border-white/10 hover:bg-white/10'
+                  }`}
+                >
+                  <span className="font-black text-xs uppercase">🚩 Drapeaux</span>
+                  <span className="text-[10px] opacity-90 font-medium">Devine le pays du drapeau</span>
+                </button>
+
+                <button
+                  onClick={() => handleGameModeChange('chrono')}
+                  className={`p-2.5 text-left rounded-xl border transition-all cursor-pointer flex flex-col gap-0.5 ${
+                    party.gameMode === 'chrono'
+                      ? 'bg-gradient-to-br from-amber-300 to-amber-500 text-[#1A1443] border-amber-200 shadow-md ring-2 ring-white/50'
+                      : 'bg-[#1A1443]/60 text-white/80 border-white/10 hover:bg-white/10'
+                  }`}
+                >
+                  <span className="font-black text-xs uppercase">⏱️ Top Chrono</span>
+                  <span className="text-[10px] opacity-85 font-medium">1er = 100%, suivants moins</span>
+                </button>
+
                 <button
                   onClick={() => handleGameModeChange('wheel')}
                   className={`p-2.5 text-left rounded-xl border transition-all cursor-pointer flex flex-col gap-0.5 ${
@@ -216,7 +245,7 @@ export const Lobby: React.FC<LobbyProps> = ({
                   }`}
                 >
                   <span className="font-black text-xs uppercase">🎡 La Roue</span>
-                  <span className="text-[10px] opacity-80 font-medium">Tournez la roue : continents & jokers</span>
+                  <span className="text-[10px] opacity-80 font-medium">Continents & jokers</span>
                 </button>
               </div>
             </div>
@@ -307,7 +336,7 @@ export const Lobby: React.FC<LobbyProps> = ({
           <div>
             <span className="text-white/60 font-semibold block text-[10px] uppercase">Mode</span>
             <strong className="text-[#FB923C] font-black uppercase">
-              {party.gameMode === 'wheel' ? '🎡 La Roue' : '⚡ Classique'}
+              {party.gameMode === 'wheel' ? '🎡 La Roue' : party.gameMode === 'chrono' ? '⏱️ Top Chrono' : party.gameMode === 'flag' ? '🚩 Devine le drapeau' : '⚡ Classique'}
             </strong>
           </div>
           <div className="w-px h-6 bg-white/15" />

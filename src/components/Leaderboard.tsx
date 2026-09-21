@@ -21,12 +21,20 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
     ? (party.localTurnIndex || 0) >= party.questions.length
     : party.currentRoundIndex + 1 >= party.questions.length;
 
+  const [isAdvancing, setIsAdvancing] = React.useState(false);
+
+  React.useEffect(() => {
+    setIsAdvancing(false);
+  }, [party.currentRoundIndex, party.status]);
+
   // Sort players by total score descending
   const sortedPlayers: Player[] = (Object.values(party.players || {}) as Player[]).sort(
     (a, b) => b.totalScore - a.totalScore
   );
 
   const handleNextRound = async () => {
+    if (isAdvancing) return;
+    setIsAdvancing(true);
     sounds.playClick();
     await nextRoundOrEnd(party.code);
   };
@@ -176,7 +184,10 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
         {isHost ? (
           <button
             onClick={handleNextRound}
-            className="w-full flex items-center justify-center gap-2 bg-[#FB923C] hover:brightness-110 text-[#1A1443] font-black text-base py-4 px-6 rounded-2xl shadow-xl shadow-[#FB923C]/20 hover:scale-[1.02] active:scale-95 transition-all cursor-pointer uppercase tracking-wider"
+            disabled={isAdvancing}
+            className={`w-full flex items-center justify-center gap-2 bg-[#FB923C] hover:brightness-110 text-[#1A1443] font-black text-base py-4 px-6 rounded-2xl shadow-xl shadow-[#FB923C]/20 hover:scale-[1.02] active:scale-95 transition-all cursor-pointer uppercase tracking-wider ${
+              isAdvancing ? 'opacity-60 pointer-events-none cursor-not-allowed' : ''
+            }`}
           >
             {isLastRound ? (
               <>

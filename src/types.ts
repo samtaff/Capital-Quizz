@@ -3,7 +3,7 @@ export type DifficultySelection = Difficulty | 'mix';
 
 export type ResponseMode = 'cash' | 'carre';
 
-export type GameMode = 'classic' | 'wheel';
+export type GameMode = 'classic' | 'wheel' | 'chrono' | 'flag';
 
 export type GameStatus = 'lobby' | 'wheel' | 'question' | 'round_map' | 'leaderboard' | 'game_over';
 
@@ -80,6 +80,8 @@ export interface PlayerRoundAnswer {
   isCorrect: boolean;
   scoreFactor: number; // 1.0 (exact cash), 0.5 (faute cash ou carre), 0 (rate)
   pointsEarned: number;
+  speedBonus?: number;
+  speedRank?: number; // 1 pour le 1er à répondre, 2 pour le 2e, etc.
   levenshteinDistance?: number;
   spellingAnalysis?: SpellingAnalysis;
   punchline?: string;
@@ -97,6 +99,7 @@ export interface Player {
   currentAnswer?: PlayerRoundAnswer | null;
   selectedMode?: ResponseMode | null;
   joinedAt: number;
+  wheelTurnsCount?: number;
 }
 
 export interface GameQuestion {
@@ -108,6 +111,8 @@ export interface GameQuestion {
   options: string[]; // 4 options for Carré
   coordinates: CapitalCoordinates;
   acceptableAnswers?: string[];
+  questionType?: 'capital' | 'flag';
+  acceptableCountryAnswers?: string[];
 }
 
 export interface PartyDoc {

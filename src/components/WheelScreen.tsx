@@ -133,10 +133,20 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
   const [hasLanded, setHasLanded] = useState(false);
   const [autoStartCount, setAutoStartCount] = useState<number | null>(null);
   const [animationDuration, setAnimationDuration] = useState(4200);
+  const [isProceeding, setIsProceeding] = useState(false);
 
   const angleRef = useRef(0);
   const tickIntervalRef = useRef<number | null>(null);
   const lastSpunAtRef = useRef<number>(0);
+
+  // Reset states when moving to a new round
+  useEffect(() => {
+    setIsProceeding(false);
+    setIsSpinning(false);
+    setSelectedPlayer(null);
+    setHasLanded(false);
+    setAutoStartCount(null);
+  }, [party.currentRoundIndex]);
 
   // Execute wheel spin animation synchronized with audio ticks
   const executeSpinAnimation = (
@@ -210,7 +220,7 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
 
   // Auto-start counter effect once landed
   useEffect(() => {
-    if (autoStartCount === null || !hasLanded || !selectedPlayer) return;
+    if (autoStartCount === null || !hasLanded || !selectedPlayer || isProceeding) return;
     if (autoStartCount <= 0) {
       if (isHost) {
         handleProceed();
@@ -223,7 +233,7 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [autoStartCount, hasLanded, selectedPlayer, isHost]);
+  }, [autoStartCount, hasLanded, selectedPlayer, isHost, isProceeding]);
 
   // Clean up timers on unmount
   useEffect(() => {
@@ -239,10 +249,27 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
 
     sounds.playClick();
 
-    // 1. Pick random target player
-    const availablePlayers = playersList.length > 0 ? playersList : [currentPlayer!];
-    const targetPlayer =
-      availablePlayers[Math.floor(Math.random() * availablePlayers.length)];
+    // 1. Pick target player with fair anti-skip algorithm:
+    let targetPlayer: Player;
+    if (party.isLocal && party.playerOrder && party.playerOrder.length > 0) {
+      // Local Pass & Play: follow exact round turn rotation so every local player plays their turn
+      const currentTurn = party.localTurnIndex ?? party.currentRoundIndex ?? 0;
+      const expectedId = party.playerOrder[currentTurn % party.playerOrder.length];
+      targetPlayer = party.players?.[expectedId] || playersList[0] || currentPlayer!;
+    } else {
+      // Online Multiplayer: select from players with the fewest turns so far (fair rotation cycle)
+      const minTurns = Math.min(...playersList.map((p) => p.wheelTurnsCount || 0));
+      const eligiblePlayers = playersList.filter(
+        (p) => (p.wheelTurnsCount || 0) === minTurns
+      );
+      const pool =
+        eligiblePlayers.length > 0
+          ? eligiblePlayers
+          : playersList.length > 0
+          ? playersList
+          : [currentPlayer!];
+      targetPlayer = pool[Math.floor(Math.random() * pool.length)];
+    }
 
     // 2. Find matching slice indices for this player
     const matchingIndices = slices
@@ -268,7 +295,8 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
 
   // Proceed to question
   const handleProceed = async () => {
-    if (!selectedPlayer) return;
+    if (!selectedPlayer || isProceeding) return;
+    setIsProceeding(true);
     sounds.playClick();
     if (onProceedPlayer) {
       await onProceedPlayer(selectedPlayer.id);
@@ -491,7 +519,10 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
               {isHost ? (
                 <button
                   onClick={handleProceed}
-                  className="w-full mt-1 bg-gradient-to-r from-emerald-400 to-teal-400 hover:brightness-110 text-[#1A1443] font-black text-xs sm:text-sm py-3 px-5 rounded-xl shadow-xl flex items-center justify-center gap-2 uppercase tracking-wider transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
+                  disabled={isProceeding}
+                  className={`w-full mt-1 bg-gradient-to-r from-emerald-400 to-teal-400 hover:brightness-110 text-[#1A1443] font-black text-xs sm:text-sm py-3 px-5 rounded-xl shadow-xl flex items-center justify-center gap-2 uppercase tracking-wider transition-all hover:scale-[1.02] active:scale-95 cursor-pointer ${
+                    isProceeding ? 'opacity-70 pointer-events-none cursor-not-allowed' : ''
+                  }`}
                 >
                   <Play className="w-4 h-4 fill-current" />
                   <span>

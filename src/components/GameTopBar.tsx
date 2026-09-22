@@ -1,5 +1,5 @@
 import React from 'react';
-import { LogOut, Volume2, VolumeX, Smartphone } from 'lucide-react';
+import { LogOut, Volume2, VolumeX, Smartphone, Palette } from 'lucide-react';
 import { PartyDoc } from '../types';
 import { PlayerBadge } from './PlayerBadge';
 
@@ -10,6 +10,7 @@ interface GameTopBarProps {
   onToggleMute: () => void;
   onOpenLeaderboard: () => void;
   onOpenLeaveModal: () => void;
+  onOpenThemeModal?: () => void;
 }
 
 export const GameTopBar: React.FC<GameTopBarProps> = ({
@@ -19,6 +20,7 @@ export const GameTopBar: React.FC<GameTopBarProps> = ({
   onToggleMute,
   onOpenLeaderboard,
   onOpenLeaveModal,
+  onOpenThemeModal,
 }) => {
   const formattedRound = party.isLocal
     ? String(Math.floor((party.localTurnIndex || 0) / (party.playerOrder?.length || 1)) + 1).padStart(2, '0')
@@ -69,6 +71,20 @@ export const GameTopBar: React.FC<GameTopBarProps> = ({
             currentPlayerId={currentPlayerId}
             onClick={onOpenLeaderboard}
           />
+
+          {/* Theme Selector Toggle */}
+          {onOpenThemeModal && (
+            <button
+              id="btn-toggle-theme"
+              onClick={onOpenThemeModal}
+              type="button"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 text-amber-400 hover:text-amber-300 flex items-center justify-center border border-white/15 transition-all cursor-pointer shrink-0"
+              title="Changer de thème visuel"
+              aria-label="Changer de thème visuel"
+            >
+              <Palette className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            </button>
+          )}
 
           {/* Sound Mute Toggle */}
           <button

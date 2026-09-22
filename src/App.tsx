@@ -11,9 +11,18 @@ import { GameOver } from './components/GameOver';
 import { GameTopBar } from './components/GameTopBar';
 import { LeaderboardModal } from './components/LeaderboardModal';
 import { LeaveConfirmModal } from './components/LeaveConfirmModal';
+import { ThemeSelectorModal } from './components/ThemeSelectorModal';
 import { sounds } from './utils/soundEffects';
+import { getSavedTheme, applyTheme, ThemeId } from './utils/theme';
 
 export default function App() {
+  const [theme, setTheme] = useState<ThemeId>(() => getSavedTheme());
+  const [showThemeModal, setShowThemeModal] = useState(false);
+
+  useEffect(() => {
+    applyTheme(theme);
+  }, [theme]);
+
   const [activeCode, setActiveCode] = useState<string | null>(() => {
     return sessionStorage.getItem('active_party_code') || null;
   });
@@ -98,12 +107,12 @@ export default function App() {
   const effectivePlayerId = (party?.isLocal && party?.activePlayerId) ? party.activePlayerId : (currentPlayerId || '');
 
   return (
-    <div className="min-h-screen bg-[#1A1443] text-white flex flex-col items-center font-['Poppins',sans-serif] selection:bg-purple-500 selection:text-white antialiased overflow-x-hidden">
+    <div className="theme-root min-h-screen bg-[#1A1443] text-white flex flex-col items-center font-['Poppins',sans-serif] selection:bg-amber-500 selection:text-white antialiased overflow-x-hidden">
       {/* Background ambient lighting */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-40 -left-40 w-96 h-96 bg-purple-600/15 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 -right-40 w-96 h-96 bg-indigo-600/15 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 left-1/3 w-96 h-96 bg-pink-600/10 rounded-full blur-3xl" />
+        <div className="ambient-glow-1 absolute -top-40 -left-40 w-96 h-96 bg-purple-600/15 rounded-full blur-3xl transition-colors duration-500" />
+        <div className="ambient-glow-2 absolute top-1/2 -right-40 w-96 h-96 bg-indigo-600/15 rounded-full blur-3xl transition-colors duration-500" />
+        <div className="ambient-glow-3 absolute -bottom-40 left-1/3 w-96 h-96 bg-pink-600/10 rounded-full blur-3xl transition-colors duration-500" />
       </div>
 
       {/* Global Top Bar (Quit anytime + Clickable badge to see Leaderboard) */}
@@ -115,6 +124,7 @@ export default function App() {
           onToggleMute={handleToggleMute}
           onOpenLeaderboard={() => setShowLeaderboardModal(true)}
           onOpenLeaveModal={() => setShowLeaveModal(true)}
+          onOpenThemeModal={() => setShowThemeModal(true)}
         />
       )}
 
@@ -127,8 +137,8 @@ export default function App() {
         }`}
       >
         {loadingParty && !party ? (
-          <div className="flex flex-col items-center gap-3 text-purple-200">
-            <span className="w-8 h-8 border-3 border-purple-400 border-t-transparent rounded-full animate-spin"></span>
+          <div className="flex flex-col items-center gap-3 text-amber-200">
+            <span className="w-8 h-8 border-3 border-amber-400 border-t-transparent rounded-full animate-spin"></span>
             <span className="text-sm font-semibold">Connexion à la partie...</span>
           </div>
         ) : !activeCode || !party || !currentPlayerId ? (
@@ -137,6 +147,7 @@ export default function App() {
             onPartyEntered={handlePartyEntered}
             isMuted={isMuted}
             onToggleMute={handleToggleMute}
+            onOpenThemeModal={() => setShowThemeModal(true)}
           />
         ) : party.status === 'lobby' ? (
           /* Realtime Lobby Screen */
@@ -218,6 +229,17 @@ export default function App() {
         isOpen={showLeaveModal}
         onClose={() => setShowLeaveModal(false)}
         onConfirmLeave={handleConfirmLeave}
+      />
+
+      {/* Theme Selector Modal */}
+      <ThemeSelectorModal
+        isOpen={showThemeModal}
+        onClose={() => setShowThemeModal(false)}
+        currentTheme={theme}
+        onSelectTheme={(selected) => {
+          setTheme(selected);
+          setShowThemeModal(false);
+        }}
       />
     </div>
   );

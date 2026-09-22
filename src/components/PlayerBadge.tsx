@@ -39,7 +39,7 @@ export const PlayerBadge: React.FC<PlayerBadgeProps> = ({
           className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl flex items-center justify-center font-black text-[11px] sm:text-xs uppercase text-white shadow-md border border-white/30 transition-transform group-hover:scale-105"
           style={{ backgroundColor: currentPlayer.color }}
         >
-          {currentPlayer.nickname.charAt(0)}
+          {currentPlayer?.nickname?.charAt(0) || '?'}
         </div>
         {isFirst ? (
           <div className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-[#FB923C] flex items-center justify-center shadow-md">
@@ -56,7 +56,7 @@ export const PlayerBadge: React.FC<PlayerBadgeProps> = ({
       <div className="flex flex-col leading-tight min-w-0">
         <div className="flex items-center gap-1">
           <span className="text-white font-black text-[11px] sm:text-sm truncate max-w-[60px] xs:max-w-[85px] sm:max-w-[120px]">
-            {currentPlayer.nickname}
+            {currentPlayer?.nickname || 'Joueur'}
           </span>
           <span className="hidden sm:inline-flex text-[9px] font-black uppercase tracking-wider text-[#FB923C] bg-[#FB923C]/20 px-1.5 py-0.5 rounded">
             #{rank}

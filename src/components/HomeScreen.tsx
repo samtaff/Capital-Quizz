@@ -14,6 +14,7 @@ import {
   Trash2,
   Play,
   Users,
+  Palette,
 } from 'lucide-react';
 import appLogo from '../assets/images/logo_capitalesquizz.png';
 import { DifficultySelection, GameMode } from '../types';
@@ -31,12 +32,14 @@ interface HomeScreenProps {
   onPartyEntered: (code: string, playerId: string) => void;
   isMuted: boolean;
   onToggleMute: () => void;
+  onOpenThemeModal?: () => void;
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
   onPartyEntered,
   isMuted,
   onToggleMute,
+  onOpenThemeModal,
 }) => {
   const [modeTab, setModeTab] = useState<'join' | 'create' | 'local'>('join');
 
@@ -211,19 +214,31 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <span>Règles du jeu</span>
         </button>
 
-        <button
-          onClick={onToggleMute}
-          title={isMuted ? 'Activer le son' : 'Couper le son'}
-          className="p-2.5 text-white/70 hover:text-white bg-white/10 hover:bg-white/15 backdrop-blur-md rounded-2xl border border-white/20 shadow-md transition-all cursor-pointer"
-        >
-          {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-        </button>
+        <div className="flex items-center gap-2">
+          {onOpenThemeModal && (
+            <button
+              onClick={onOpenThemeModal}
+              title="Changer de thème"
+              type="button"
+              className="flex items-center gap-1.5 text-xs text-white/80 hover:text-white bg-white/10 hover:bg-white/15 backdrop-blur-md px-3 py-2 rounded-2xl border border-white/20 shadow-md transition-all cursor-pointer font-bold uppercase tracking-wider"
+            >
+              <Palette className="w-4 h-4 text-amber-400" />
+              <span className="hidden xs:inline">Thème</span>
+            </button>
+          )}
+
+          <button
+            onClick={onToggleMute}
+            title={isMuted ? 'Activer le son' : 'Couper le son'}
+            className="p-2.5 text-white/70 hover:text-white bg-white/10 hover:bg-white/15 backdrop-blur-md rounded-2xl border border-white/20 shadow-md transition-all cursor-pointer"
+          >
+            {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+          </button>
+        </div>
       </div>
 
       {/* Main Logo (Capitale Quizz) */}
       <div className="text-center flex flex-col items-center relative my-1 sm:my-2">
-        <div className="absolute -inset-6 bg-[#FB923C]/20 blur-3xl rounded-full pointer-events-none" />
-
         <motion.div
           animate={{ y: [0, -5, 0] }}
           transition={{ repeat: Infinity, duration: 4, ease: 'easeInOut' }}

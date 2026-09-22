@@ -69,9 +69,9 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
       return [0, 1, 2, 3].map((idx) => ({
         sliceId: `slice-${idx}`,
         playerId: p.id,
-        nickname: p.nickname,
+        nickname: p?.nickname || 'Joueur',
         color: p.color || SLICE_PALETTE[idx % SLICE_PALETTE.length],
-        initial: p.nickname.charAt(0).toUpperCase(),
+        initial: (p?.nickname || 'J').charAt(0).toUpperCase(),
       }));
     }
 
@@ -82,9 +82,9 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
         return {
           sliceId: `slice-${idx}`,
           playerId: p.id,
-          nickname: p.nickname,
+          nickname: p?.nickname || 'Joueur',
           color: p.color || SLICE_PALETTE[idx % 2],
-          initial: p.nickname.charAt(0).toUpperCase(),
+          initial: (p?.nickname || 'J').charAt(0).toUpperCase(),
         };
       });
     }
@@ -96,9 +96,9 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
         return {
           sliceId: `slice-${idx}`,
           playerId: p.id,
-          nickname: p.nickname,
+          nickname: p?.nickname || 'Joueur',
           color: p.color || SLICE_PALETTE[idx % 3],
-          initial: p.nickname.charAt(0).toUpperCase(),
+          initial: (p?.nickname || 'J').charAt(0).toUpperCase(),
         };
       });
     }
@@ -110,9 +110,9 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
         return {
           sliceId: `slice-${idx}`,
           playerId: p.id,
-          nickname: p.nickname,
+          nickname: p?.nickname || 'Joueur',
           color: p.color || SLICE_PALETTE[idx % 4],
-          initial: p.nickname.charAt(0).toUpperCase(),
+          initial: (p?.nickname || 'J').charAt(0).toUpperCase(),
         };
       });
     }
@@ -121,9 +121,9 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
     return playersList.map((p, idx) => ({
       sliceId: `slice-${idx}`,
       playerId: p.id,
-      nickname: p.nickname,
+      nickname: p?.nickname || 'Joueur',
       color: p.color || SLICE_PALETTE[idx % SLICE_PALETTE.length],
-      initial: p.nickname.charAt(0).toUpperCase(),
+      initial: (p?.nickname || 'J').charAt(0).toUpperCase(),
     }));
   }, [playersList, currentPlayerId, currentPlayer]);
 
@@ -500,12 +500,12 @@ export const WheelScreen: React.FC<WheelScreenProps> = ({
                   className="w-11 h-11 sm:w-13 sm:h-13 rounded-2xl flex items-center justify-center font-black text-xl sm:text-2xl text-white shadow-lg border-2 border-white/40 uppercase"
                   style={{ backgroundColor: selectedPlayer.color || '#3B82F6' }}
                 >
-                  {selectedPlayer.nickname.charAt(0)}
+                  {selectedPlayer?.nickname?.charAt(0) || '?'}
                 </div>
 
                 <div className="text-left">
                   <h3 className="text-lg sm:text-2xl font-black text-white uppercase tracking-tight">
-                    {selectedPlayer.nickname}
+                    {selectedPlayer?.nickname || 'Joueur'}
                   </h3>
                   <span className="text-[11px] font-bold text-white/70">
                     {selectedPlayer.id === currentPlayerId

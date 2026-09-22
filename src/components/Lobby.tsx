@@ -128,7 +128,7 @@ export const Lobby: React.FC<LobbyProps> = ({
 
         {/* 4-letter Huge Code */}
         <div className="flex items-center justify-center my-3">
-          <span className="text-6xl sm:text-8xl font-black tracking-widest text-[#FB923C] drop-shadow-md font-mono">
+          <span className="text-5xl xs:text-6xl sm:text-8xl font-black tracking-widest text-[#FB923C] drop-shadow-md font-mono">
             {party.code}
           </span>
         </div>
@@ -138,19 +138,19 @@ export const Lobby: React.FC<LobbyProps> = ({
         </p>
 
         {/* Share buttons */}
-        <div className="flex items-center justify-center gap-3 flex-wrap">
+        <div className="flex items-center justify-center gap-2.5 sm:gap-3 flex-wrap">
           <button
             onClick={handleCopyCode}
-            className="flex items-center gap-2 bg-white hover:bg-slate-100 text-[#1A1443] font-black text-xs uppercase tracking-wider px-5 py-3 rounded-xl transition-all shadow-lg active:scale-95 cursor-pointer"
+            className="w-full xs:w-auto justify-center flex items-center gap-2 bg-white hover:bg-slate-100 text-[#1A1443] font-black text-xs uppercase tracking-wider px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl transition-all shadow-lg active:scale-95 cursor-pointer"
           >
             {copiedCode ? (
               <>
-                <Check className="w-4 h-4 text-emerald-600" />
+                <Check className="w-4 h-4 text-emerald-600 shrink-0" />
                 <span>Code copié !</span>
               </>
             ) : (
               <>
-                <Copy className="w-4 h-4" />
+                <Copy className="w-4 h-4 shrink-0" />
                 <span>Copier le code</span>
               </>
             )}
@@ -158,17 +158,17 @@ export const Lobby: React.FC<LobbyProps> = ({
 
           <button
             onClick={handleCopyLink}
-            className="flex items-center gap-2 bg-[#1A1443]/80 hover:bg-[#1A1443] border border-white/20 text-white font-bold text-xs uppercase tracking-wider px-5 py-3 rounded-xl transition-all active:scale-95 cursor-pointer"
+            className="w-full xs:w-auto justify-center flex items-center gap-2 bg-[#1A1443]/80 hover:bg-[#1A1443] border border-white/20 text-white font-bold text-xs uppercase tracking-wider px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl transition-all active:scale-95 cursor-pointer"
           >
             {copiedLink ? (
               <>
-                <Check className="w-4 h-4 text-emerald-400" />
+                <Check className="w-4 h-4 text-emerald-400 shrink-0" />
                 <span>Lien copié !</span>
               </>
             ) : (
               <>
-                <Share2 className="w-4 h-4" />
-                <span>Partager le lien direct</span>
+                <Share2 className="w-4 h-4 shrink-0" />
+                <span>Partager le lien</span>
               </>
             )}
           </button>
@@ -388,14 +388,14 @@ export const Lobby: React.FC<LobbyProps> = ({
                     className="w-10 h-10 rounded-full flex items-center justify-center text-white font-black text-sm shadow-md shrink-0 uppercase border-2 border-[#1A1443]"
                     style={{ backgroundColor: player.color }}
                   >
-                    {player.nickname.charAt(0)}
+                    {player?.nickname?.charAt(0) || '?'}
                   </div>
 
                   {/* Nickname & info */}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1">
                       <span className="text-white text-sm font-bold truncate">
-                        {player.nickname}
+                        {player?.nickname || 'Joueur'}
                       </span>
                       {player.isHost && (
                         <Crown className="w-3.5 h-3.5 text-[#FB923C] shrink-0" />

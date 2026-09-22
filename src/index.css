@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @import "leaflet/dist/leaflet.css";
 
+@theme {
+  --breakpoint-xs: 380px;
+}
+
 body {
   font-family: 'Poppins', system-ui, -apple-system, sans-serif;
   background-color: #1A1443;
@@ -8,6 +12,69 @@ body {
   margin: 0;
   padding: 0;
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ==========================================================================
+   THEME 1 : BLEU NUIT OCÉAN & OR (DARK NAVY - THÈME PAR DÉFAUT)
+   ========================================================================== */
+html[data-theme="ocean"] body,
+html[data-theme="ocean"] .theme-root {
+  background-color: #0A192F !important;
+}
+html[data-theme="ocean"] .bg-\[\#1A1443\] {
+  background-color: #0F2342 !important;
+}
+html[data-theme="ocean"] .bg-\[\#1A1443\]\/60,
+html[data-theme="ocean"] .bg-\[\#1A1443\]\/70,
+html[data-theme="ocean"] .bg-\[\#1A1443\]\/80,
+html[data-theme="ocean"] .bg-\[\#1A1443\]\/90 {
+  background-color: rgba(15, 35, 66, 0.85) !important;
+}
+html[data-theme="ocean"] .bg-\[\#1F1854\],
+html[data-theme="ocean"] .bg-\[\#1F1854\]\/90,
+html[data-theme="ocean"] .bg-\[\#28206C\] {
+  background-color: #132B50 !important;
+}
+html[data-theme="ocean"] .ambient-glow-1 {
+  background-color: rgba(2, 132, 199, 0.16) !important;
+}
+html[data-theme="ocean"] .ambient-glow-2 {
+  background-color: rgba(245, 158, 11, 0.14) !important;
+}
+html[data-theme="ocean"] .ambient-glow-3 {
+  background-color: rgba(14, 165, 233, 0.12) !important;
+}
+
+/* ==========================================================================
+   THEME 2 : ARDOISE TITANE (DARK SLATE)
+   ========================================================================== */
+html[data-theme="slate"] body,
+html[data-theme="slate"] .theme-root {
+  background-color: #0F172A !important;
+}
+html[data-theme="slate"] .bg-\[\#1A1443\] {
+  background-color: #1E293B !important;
+}
+html[data-theme="slate"] .bg-\[\#1A1443\]\/60,
+html[data-theme="slate"] .bg-\[\#1A1443\]\/70,
+html[data-theme="slate"] .bg-\[\#1A1443\]\/80,
+html[data-theme="slate"] .bg-\[\#1A1443\]\/90 {
+  background-color: rgba(30, 41, 59, 0.85) !important;
+}
+html[data-theme="slate"] .bg-\[\#1F1854\],
+html[data-theme="slate"] .bg-\[\#1F1854\]\/90,
+html[data-theme="slate"] .bg-\[\#28206C\] {
+  background-color: #24344D !important;
+}
+html[data-theme="slate"] .ambient-glow-1 {
+  background-color: rgba(56, 189, 248, 0.14) !important;
+}
+html[data-theme="slate"] .ambient-glow-2 {
+  background-color: rgba(99, 102, 241, 0.12) !important;
+}
+html[data-theme="slate"] .ambient-glow-3 {
+  background-color: rgba(148, 163, 184, 0.08) !important;
 }
 
 /* Custom Leaflet styling for dark/Artistic Flair theme */

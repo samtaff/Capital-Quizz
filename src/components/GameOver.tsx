@@ -71,13 +71,13 @@ export const GameOver: React.FC<GameOverProps> = ({
               className="w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center text-white font-black text-xl shadow-lg border-2 border-slate-300 relative mb-2"
               style={{ backgroundColor: second.color }}
             >
-              {second.nickname.charAt(0)}
+              {second?.nickname?.charAt(0) || '?'}
               <div className="absolute -top-1.5 -right-1.5 bg-slate-300 text-slate-900 font-black text-[10px] w-5 h-5 rounded-full flex items-center justify-center border border-white">
                 2
               </div>
             </div>
             <span className="text-white font-bold text-xs sm:text-sm truncate max-w-[90px] text-center">
-              {second.nickname}
+              {second?.nickname || 'Joueur'}
             </span>
             <span className="text-white/60 text-xs font-semibold mb-2">
               {second.totalScore} pts
@@ -115,11 +115,11 @@ export const GameOver: React.FC<GameOverProps> = ({
                 className="w-18 h-18 sm:w-20 sm:h-20 rounded-full flex items-center justify-center text-white font-black text-2xl shadow-2xl border-3 border-[#FB923C]"
                 style={{ backgroundColor: winner.color }}
               >
-                {winner.nickname.charAt(0)}
+                {winner?.nickname?.charAt(0) || '?'}
               </div>
             </div>
             <span className="text-white font-black text-sm sm:text-base truncate max-w-[110px] text-center">
-              {winner.nickname}
+              {winner?.nickname || 'Joueur'}
             </span>
             <span className="text-[#FB923C] text-xs sm:text-sm font-black mb-2">
               {winner.totalScore} pts
@@ -147,13 +147,13 @@ export const GameOver: React.FC<GameOverProps> = ({
               className="w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center text-white font-black text-lg shadow-lg border-2 border-amber-700 relative mb-2"
               style={{ backgroundColor: third.color }}
             >
-              {third.nickname.charAt(0)}
+              {third?.nickname?.charAt(0) || '?'}
               <div className="absolute -top-1.5 -right-1.5 bg-amber-700 text-amber-100 font-black text-[10px] w-5 h-5 rounded-full flex items-center justify-center border border-white">
                 3
               </div>
             </div>
             <span className="text-white font-bold text-xs sm:text-sm truncate max-w-[80px] text-center">
-              {third.nickname}
+              {third?.nickname || 'Joueur'}
             </span>
             <span className="text-white/60 text-xs font-semibold mb-2">
               {third.totalScore} pts
@@ -199,11 +199,11 @@ export const GameOver: React.FC<GameOverProps> = ({
                       className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs border border-[#1A1443] shrink-0 uppercase"
                       style={{ backgroundColor: player.color }}
                     >
-                      {player.nickname.charAt(0)}
+                      {player?.nickname?.charAt(0) || '?'}
                     </div>
                     <div className="flex items-center gap-1.5 min-w-0">
                       <span className="text-white font-bold text-sm sm:text-base truncate">
-                        {player.nickname}
+                        {player?.nickname || 'Joueur'}
                       </span>
                       {player.id === currentPlayerId && (
                         <span className="text-[9px] bg-white/20 text-white font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider shrink-0">
@@ -231,22 +231,22 @@ export const GameOver: React.FC<GameOverProps> = ({
       </div>
 
       {/* Action Buttons */}
-      <div className="w-full flex items-center justify-center gap-4 flex-wrap mt-2">
+      <div className="w-full flex items-center justify-center gap-2.5 sm:gap-4 flex-wrap mt-2">
         {isHost && (
           <button
             onClick={handleRestart}
-            className="flex items-center gap-2 bg-[#FB923C] hover:brightness-110 text-[#1A1443] font-black text-sm uppercase tracking-wider py-3.5 px-6 rounded-2xl shadow-xl shadow-[#FB923C]/20 hover:scale-[1.02] active:scale-95 transition-all cursor-pointer"
+            className="flex items-center justify-center gap-2 bg-[#FB923C] hover:brightness-110 text-[#1A1443] font-black text-xs sm:text-sm uppercase tracking-wider py-3 px-4 sm:py-3.5 sm:px-6 rounded-2xl shadow-xl shadow-[#FB923C]/20 hover:scale-[1.02] active:scale-95 transition-all cursor-pointer text-center"
           >
-            <RotateCcw className="w-4 h-4" />
-            <span>Rejouer ensemble (même salon)</span>
+            <RotateCcw className="w-4 h-4 shrink-0" />
+            <span>Rejouer ensemble<span className="hidden sm:inline"> (même salon)</span></span>
           </button>
         )}
 
         <button
           onClick={onHome}
-          className="flex items-center gap-2 bg-white/10 hover:bg-white/15 backdrop-blur-md border border-white/20 text-white font-bold text-sm uppercase tracking-wider py-3.5 px-6 rounded-2xl transition-all active:scale-95 cursor-pointer"
+          className="flex items-center justify-center gap-2 bg-white/10 hover:bg-white/15 backdrop-blur-md border border-white/20 text-white font-bold text-xs sm:text-sm uppercase tracking-wider py-3 px-5 sm:py-3.5 sm:px-6 rounded-2xl transition-all active:scale-95 cursor-pointer"
         >
-          <Home className="w-4 h-4" />
+          <Home className="w-4 h-4 shrink-0" />
           <span>Accueil</span>
         </button>
       </div>

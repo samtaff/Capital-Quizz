@@ -96,14 +96,14 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
                   className="w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center text-white font-black text-sm sm:text-base shadow-sm shrink-0 uppercase border-2 border-[#1A1443]"
                   style={{ backgroundColor: player.color }}
                 >
-                  {player.nickname.charAt(0)}
+                  {player?.nickname?.charAt(0) || '?'}
                 </div>
 
                 {/* Nickname & Label */}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <span className="text-white font-bold text-sm sm:text-lg truncate">
-                      {player.nickname}
+                      {player?.nickname || 'Joueur'}
                     </span>
                     {isCurrent && (
                       <span className="text-[9px] sm:text-[10px] bg-white/20 text-white font-bold px-1.5 sm:px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0">

@@ -328,10 +328,10 @@ export const RoundReview: React.FC<RoundReviewProps> = ({
                     className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-black border border-[#1A1443] shrink-0 uppercase"
                     style={{ backgroundColor: p.color }}
                   >
-                    {p.nickname.charAt(0)}
+                    {p?.nickname?.charAt(0) || '?'}
                   </div>
                   <span className="text-white text-[11px] sm:text-xs font-bold truncate max-w-[90px]">
-                    {p.nickname}
+                    {p?.nickname || 'Joueur'}
                   </span>
                   {hasAns ? (
                     isCorrect ? (

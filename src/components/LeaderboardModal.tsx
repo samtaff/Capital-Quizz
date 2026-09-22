@@ -120,14 +120,14 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                       className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-sm uppercase shadow border border-white/20 shrink-0"
                       style={{ backgroundColor: player.color }}
                     >
-                      {player.nickname.charAt(0)}
+                      {player?.nickname?.charAt(0) || '?'}
                     </div>
 
                     {/* Info */}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="font-bold text-sm sm:text-base text-white truncate">
-                          {player.nickname}
+                          {player?.nickname || 'Joueur'}
                         </span>
                         {isCurrent && (
                           <span className="text-[10px] bg-white/20 text-white font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider">
